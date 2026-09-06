@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battleship</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Battleship</h1>
+    <p id="status" class="status" role="status" aria-live="polite">Place your fleet to begin.</p>
+  </header>
+
+  <main>
+    <section id="placement-panel" class="panel">
+      <h2>Place your fleet</h2>
+      <p class="hint">
+        Click a cell on your waters to place
+        <strong id="next-ship-name">Carrier</strong>
+        (<span id="next-ship-size">5</span> cells,
+        <span id="orientation-label">horizontal</span>).
+      </p>
+      <div class="controls">
+        <button type="button" id="rotate-btn">Rotate (R)</button>
+        <button type="button" id="random-btn">Random placement</button>
+        <button type="button" id="reset-placement-btn">Clear placement</button>
+      </div>
+    </section>
+
+    <div class="boards">
+      <section class="board-wrapper">
+        <h2>Your waters</h2>
+        <div id="player-board" class="board" aria-label="Your waters"></div>
+        <ul id="player-fleet" class="fleet-list"></ul>
+      </section>
+
+      <section class="board-wrapper">
+        <h2>Enemy waters</h2>
+        <div id="enemy-board" class="board" aria-label="Enemy waters"></div>
+        <ul id="enemy-fleet" class="fleet-list"></ul>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="controls">
+        <button type="button" id="new-game-btn">New game</button>
+      </div>
+      <h2>Battle log</h2>
+      <ul id="log" class="log"></ul>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>

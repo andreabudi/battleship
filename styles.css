@@ -1,0 +1,218 @@
+:root {
+  --sea: #dceefb;
+  --sea-dark: #0b3c5d;
+  --ship: #6b7a8f;
+  --hit: #d64545;
+  --miss: #9aa5b1;
+  --sunk: #7b1e1e;
+  --preview-ok: #4caf7d;
+  --preview-bad: #e07a5f;
+  --cell-gap: 2px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f8fb;
+  color: #14293b;
+}
+
+header {
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sea-dark);
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.status {
+  margin: 0 0 12px;
+  font-weight: 600;
+  min-height: 1.4em;
+}
+
+.hint {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #d6e2ec;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--sea-dark);
+  border-radius: 6px;
+  background: var(--sea-dark);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #145a80;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.board-wrapper {
+  flex: 1 1 320px;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #d6e2ec;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* The board is a square 10x10 grid that shrinks with its container, so it
+   stays inside a ~375px phone viewport without horizontal scrolling. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: var(--cell-gap);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #b9d4e6;
+  padding: var(--cell-gap);
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+.cell {
+  background: var(--sea);
+  border: none;
+  border-radius: 2px;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.6rem, 2.4vw, 0.9rem);
+  line-height: 1;
+  color: #fff;
+  cursor: default;
+  transition: background 0.15s ease;
+}
+
+.board.interactive .cell:not(.fired) {
+  cursor: crosshair;
+}
+
+.cell.ship {
+  background: var(--ship);
+}
+
+.cell.miss {
+  background: var(--miss);
+}
+
+.cell.miss::after {
+  content: "•";
+  color: #fff;
+}
+
+.cell.hit {
+  background: var(--hit);
+}
+
+.cell.hit::after {
+  content: "✕";
+}
+
+.cell.sunk {
+  background: var(--sunk);
+}
+
+.cell.preview-ok {
+  background: var(--preview-ok);
+}
+
+.cell.preview-bad {
+  background: var(--preview-bad);
+}
+
+.fleet-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.fleet-list li {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8f1f8;
+  border: 1px solid #cfe0ed;
+}
+
+.fleet-list li.sunk-ship {
+  background: var(--sunk);
+  border-color: var(--sunk);
+  color: #fff;
+  text-decoration: line-through;
+}
+
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.log li {
+  padding: 4px 0;
+  border-bottom: 1px solid #eef3f7;
+}
+
+@media (max-width: 700px) {
+  .boards {
+    flex-direction: column;
+  }
+}
