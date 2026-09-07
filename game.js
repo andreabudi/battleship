@@ -339,7 +339,7 @@ function takeAiTurn() {
 
   const index = chooseAiShot(game.playerBoard, game.ai);
   const result = fireAt(game.playerBoard, index);
-  updateAiAfterShot(game.ai, index, result);
+  updateAiAfterShot(game.playerBoard, game.ai, index, result);
 
   const coordinate = formatCoordinate(index);
   if (result.sunkShip) {
@@ -380,22 +380,27 @@ function endGame(winner) {
  * ==================================================================
  *
  * State:
- *   mode          "hunt" (no ship being chased) or "target" (chasing one)
- *   targetQueue   candidate cell indices to try next, highest priority last
- *   currentHits   hits belonging to the ship currently being chased
+ *   mode            "hunt" (nothing to chase) or "target" (chasing damage)
+ *   targetQueue     candidate cell indices to try next, highest priority last
+ *   unresolvedHits  every hit cell not yet accounted for by a sunk ship
+ *
+ * Ships may sit next to each other, so hits are NOT assumed to belong to a
+ * single ship. `unresolvedHits` is split into contiguous clusters and each
+ * cluster is pursued on its own; orientation is only inferred within a
+ * cluster that is collinear.
  *
  * Transitions:
- *   hunt   --hit-->  target       (seed queue with orthogonal neighbours)
- *   target --hit-->  target       (once two hits share a row or column the
- *                                  queue is rebuilt to only the two ends of
- *                                  that line, so the AI follows the ship)
- *   target --sunk--> hunt         (unless leftover hits from another ship
- *                                  remain, in which case chasing continues)
- *   target --empty queue--> hunt
+ *   hunt   --hit-->  target       (hit joins unresolvedHits, queue rebuilt)
+ *   target --hit-->  target
+ *   target --sunk--> hunt ONLY when the sunk ship's cells account for every
+ *                    unresolved hit; otherwise the leftover hits belong to
+ *                    another damaged ship and the chase continues
+ *   target --empty queue--> the queue is refilled from unresolvedHits, and
+ *                    hunting resumes only once no unresolved hit is left
  */
 
 function createAiState() {
-  return { mode: "hunt", targetQueue: [], currentHits: [] };
+  return { mode: "hunt", targetQueue: [], unresolvedHits: [] };
 }
 
 function hasNotBeenFiredAt(board, index) {
@@ -415,13 +420,26 @@ function orthogonalNeighbours(index) {
     .map(([r, c]) => toIndex(r, c));
 }
 
-/** Picks the AI's next shot; never returns a cell that was already fired at. */
+/**
+ * Picks the AI's next shot; never returns a cell that was already fired at.
+ * An exhausted queue does not end the chase: while an unresolved hit remains
+ * the queue is rebuilt from it (which, after a failed line, degrades to
+ * targeting those hits individually), so a damaged ship is never abandoned.
+ */
 function chooseAiShot(board, ai) {
-  while (ai.targetQueue.length > 0) {
-    const candidate = ai.targetQueue.pop();
-    if (hasNotBeenFiredAt(board, candidate)) return candidate;
+  for (;;) {
+    while (ai.targetQueue.length > 0) {
+      const candidate = ai.targetQueue.pop();
+      if (hasNotBeenFiredAt(board, candidate)) {
+        ai.mode = "target";
+        return candidate;
+      }
+    }
+    if (ai.unresolvedHits.length === 0) break;
+    const refilled = buildTargetQueue(board, ai.unresolvedHits);
+    if (refilled.length === 0) break; // every unresolved hit is boxed in
+    ai.targetQueue = refilled;
   }
-  // Queue exhausted (or empty): fall back to hunting.
   ai.mode = "hunt";
   return chooseRandomUnfiredCell(board);
 }
@@ -434,57 +452,121 @@ function chooseRandomUnfiredCell(board) {
   return openCells[Math.floor(Math.random() * openCells.length)];
 }
 
-function updateAiAfterShot(ai, index, result) {
+function updateAiAfterShot(board, ai, index, result) {
   if (!result.hit) return;
 
-  ai.currentHits.push(index);
+  ai.unresolvedHits.push(index);
 
   if (result.sunkShip) {
-    // Drop the sunk ship's cells from the chase. Any hits left over belong to
-    // a different ship that was clipped along the way, so keep targeting those.
+    // Only the sunk ship's own cells are resolved. Hits left over belong to
+    // another damaged ship (adjacent ships share a cluster of hits), so they
+    // stay in the pursuit set and the chase continues.
     const sunkCells = new Set(result.sunkShip.cells);
-    ai.currentHits = ai.currentHits.filter((hit) => !sunkCells.has(hit));
+    ai.unresolvedHits = ai.unresolvedHits.filter((hit) => !sunkCells.has(hit));
     ai.targetQueue = ai.targetQueue.filter((cell) => !sunkCells.has(cell));
+  }
 
-    if (ai.currentHits.length === 0) {
-      ai.mode = "hunt";
-      ai.targetQueue = [];
-      return;
-    }
+  if (ai.unresolvedHits.length === 0) {
+    ai.mode = "hunt";
+    ai.targetQueue = [];
+    return;
   }
 
   ai.mode = "target";
-  ai.targetQueue = buildTargetQueue(ai.currentHits);
+  ai.targetQueue = buildTargetQueue(board, ai.unresolvedHits);
 }
 
 /**
- * Rebuilds the candidate queue from the hits on the ship being chased.
- * With a single hit the candidates are its four neighbours. With two or more
- * hits the orientation is known, so only the two cells extending the line are
- * worth trying. Cells already fired at are skipped when the queue is consumed.
+ * Splits hits into clusters of orthogonally connected cells. Two damaged
+ * ships lying side by side form a single cluster, which is why a cluster is
+ * never assumed to be one ship.
  */
-function buildTargetQueue(hits) {
-  if (hits.length === 1) return orthogonalNeighbours(hits[0]);
+function groupContiguousHits(hits) {
+  const remaining = new Set(hits);
+  const clusters = [];
 
-  const rows = hits.map(toRow);
-  const cols = hits.map(toCol);
-  const sameRow = rows.every((row) => row === rows[0]);
+  while (remaining.size > 0) {
+    const seed = remaining.values().next().value;
+    remaining.delete(seed);
+    const cluster = [seed];
+    const frontier = [seed];
+    while (frontier.length > 0) {
+      const cell = frontier.pop();
+      orthogonalNeighbours(cell).forEach((neighbour) => {
+        if (remaining.has(neighbour)) {
+          remaining.delete(neighbour);
+          cluster.push(neighbour);
+          frontier.push(neighbour);
+        }
+      });
+    }
+    clusters.push(cluster);
+  }
+  return clusters;
+}
+
+function areCollinear(cells) {
+  const rows = cells.map(toRow);
+  const cols = cells.map(toCol);
+  return (
+    rows.every((row) => row === rows[0]) || cols.every((col) => col === cols[0])
+  );
+}
+
+/** The cells extending a collinear cluster past each of its two ends. */
+function lineExtensions(cluster) {
+  const rows = cluster.map(toRow);
+  const cols = cluster.map(toCol);
   const candidates = [];
 
-  if (sameRow) {
+  if (rows.every((row) => row === rows[0])) {
     const row = rows[0];
-    const minCol = Math.min(...cols);
-    const maxCol = Math.max(...cols);
-    if (isInsideBoard(row, minCol - 1)) candidates.push(toIndex(row, minCol - 1));
-    if (isInsideBoard(row, maxCol + 1)) candidates.push(toIndex(row, maxCol + 1));
+    candidates.push([row, Math.min(...cols) - 1], [row, Math.max(...cols) + 1]);
   } else {
     const col = cols[0];
-    const minRow = Math.min(...rows);
-    const maxRow = Math.max(...rows);
-    if (isInsideBoard(minRow - 1, col)) candidates.push(toIndex(minRow - 1, col));
-    if (isInsideBoard(maxRow + 1, col)) candidates.push(toIndex(maxRow + 1, col));
+    candidates.push([Math.min(...rows) - 1, col], [Math.max(...rows) + 1, col]);
   }
-  return candidates;
+  return candidates
+    .filter(([row, col]) => isInsideBoard(row, col))
+    .map(([row, col]) => toIndex(row, col));
+}
+
+/**
+ * Rebuilds the candidate queue from every unresolved hit. Candidates are
+ * popped from the end, so the largest cluster (the strongest lead) is queued
+ * last and shot at first.
+ *
+ * Per cluster:
+ *   - collinear with 2+ cells -> extend the inferred line at both ends
+ *   - otherwise, or once both of those ends have been fired at (the "line"
+ *     was really two adjacent ships) -> fall back to the neighbours of each
+ *     hit in the cluster
+ * Cells already fired at are dropped, so an empty result means there is
+ * genuinely nothing left to try.
+ */
+function buildTargetQueue(board, unresolvedHits) {
+  const clusters = groupContiguousHits(unresolvedHits).sort(
+    (a, b) => a.length - b.length
+  );
+  const queue = [];
+
+  clusters.forEach((cluster) => {
+    let candidates = [];
+    if (cluster.length >= 2 && areCollinear(cluster)) {
+      candidates = lineExtensions(cluster).filter((cell) =>
+        hasNotBeenFiredAt(board, cell)
+      );
+    }
+    if (candidates.length === 0) {
+      candidates = cluster
+        .flatMap(orthogonalNeighbours)
+        .filter((cell) => hasNotBeenFiredAt(board, cell));
+    }
+    candidates.forEach((cell) => {
+      if (!queue.includes(cell)) queue.push(cell);
+    });
+  });
+  return queue;
 }
 
 /* ------------------------------------------------------------------ *

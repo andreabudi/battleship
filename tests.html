@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Battleship - AI tests</title>
+</head>
+<body>
+  <h1>Battleship AI tests</h1>
+  <p>Open this page in a browser (or run it headless) and read the results below.</p>
+  <pre id="results">Running...</pre>
+
+  <!-- game.js wires itself to the real UI on load, so the harness supplies the
+       same element ids as index.html. They are hidden and unused by the tests. -->
+  <div hidden>
+    <div id="player-board"></div>
+    <div id="enemy-board"></div>
+    <ul id="player-fleet"></ul>
+    <ul id="enemy-fleet"></ul>
+    <p id="status"></p>
+    <ul id="log"></ul>
+    <div id="placement-panel">
+      <span id="next-ship-name"></span>
+      <span id="next-ship-size"></span>
+      <span id="orientation-label"></span>
+    </div>
+    <button type="button" id="rotate-btn"></button>
+    <button type="button" id="random-btn"></button>
+    <button type="button" id="reset-placement-btn"></button>
+    <button type="button" id="new-game-btn"></button>
+  </div>
+
+  <script src="game.js"></script>
+  <script src="tests.js"></script>
+</body>
+</html>
