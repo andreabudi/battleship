@@ -201,11 +201,17 @@ button:disabled {
   content: "✕";
 }
 
-.cell.preview-ok {
+/* The placement preview must win over the hover highlight: the hovered cell is
+   the anchor of the preview, and the `.board.interactive ... :hover` selectors
+   above are more specific than a bare `.cell.preview-*`, so the preview is
+   restated here at matching specificity (and later in the file). */
+.cell.preview-ok,
+.board.interactive .cell.preview-ok:not(.fired):hover {
   background: var(--preview-ok);
 }
 
-.cell.preview-bad {
+.cell.preview-bad,
+.board.interactive .cell.preview-bad:not(.fired):hover {
   background: var(--preview-bad);
 }
 
