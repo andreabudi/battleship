@@ -3,11 +3,16 @@
   --sea-dark: #0b3c5d;
   --ship: #6b7a8f;
   --hit: #d64545;
-  --miss: #9aa5b1;
+  --miss: #2f3e4d;
+  --miss-marker: #cfd8e3;
   --sunk: #7b1e1e;
   --preview-ok: #4caf7d;
   --preview-bad: #e07a5f;
+  --hover: #a9d0ea;
   --cell-gap: 2px;
+  /* Fixed cell size: grid tracks never depend on cell content, so marking a
+     cell can never resize a row or reflow the board. */
+  --cell-size: clamp(24px, 7.6vw, 34px);
 }
 
 * {
@@ -106,14 +111,16 @@ button:disabled {
   padding: 12px;
 }
 
-/* The board is a square 10x10 grid that shrinks with its container, so it
-   stays inside a ~375px phone viewport without horizontal scrolling. */
+/* Fixed 10x10 tracks. The cell size scales with the viewport but every track
+   is the same fixed length, so the grid geometry is independent of state. */
 .board {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(10, var(--cell-size));
+  grid-template-rows: repeat(10, var(--cell-size));
   gap: var(--cell-gap);
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
   background: #b9d4e6;
   padding: var(--cell-gap);
   border-radius: 4px;
@@ -121,36 +128,59 @@ button:disabled {
 }
 
 .cell {
+  position: relative;
+  width: var(--cell-size);
+  height: var(--cell-size);
   background: var(--sea);
   border: none;
   border-radius: 2px;
   padding: 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(0.6rem, 2.4vw, 0.9rem);
-  line-height: 1;
+  overflow: hidden;
   color: #fff;
   cursor: default;
   transition: background 0.15s ease;
 }
 
+/* Markers are absolutely positioned so they can never influence layout. */
+.cell::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  font-size: calc(var(--cell-size) * 0.7);
+}
+
+/* Hover affordance is opt-in per board: `interactive` is set only on the board
+   the player can actually click during the current phase. */
 .board.interactive .cell:not(.fired) {
   cursor: crosshair;
+}
+
+.board.interactive .cell:not(.fired):hover {
+  background: var(--hover);
+}
+
+.board.interactive .cell.ship:not(.fired):hover {
+  background: #8394a8;
 }
 
 .cell.ship {
   background: var(--ship);
 }
 
+/* Miss: dark slate fill with a small round dot, so it differs from a hit in
+   both colour and marker shape. */
 .cell.miss {
   background: var(--miss);
 }
 
 .cell.miss::after {
-  content: "•";
-  color: #fff;
+  content: "";
+  width: calc(var(--cell-size) * 0.3);
+  height: calc(var(--cell-size) * 0.3);
+  border-radius: 50%;
+  background: var(--miss-marker);
 }
 
 .cell.hit {
@@ -163,6 +193,10 @@ button:disabled {
 
 .cell.sunk {
   background: var(--sunk);
+}
+
+.cell.sunk::after {
+  content: "✕";
 }
 
 .cell.preview-ok {
@@ -211,8 +245,46 @@ button:disabled {
   border-bottom: 1px solid #eef3f7;
 }
 
+/* End-of-game overlay: the boards stay visible behind the translucent scrim. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 60, 93, 0.55);
+  padding: 16px;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  max-width: 320px;
+  box-shadow: 0 10px 30px rgba(11, 60, 93, 0.35);
+}
+
+.overlay-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+
+.overlay-card p {
+  margin: 0 0 16px;
+}
+
 @media (max-width: 700px) {
   .boards {
     flex-direction: column;
+    align-items: center;
+  }
+
+  .board-wrapper {
+    width: 100%;
   }
 }

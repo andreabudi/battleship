@@ -144,6 +144,10 @@ const rotateButton = document.getElementById("rotate-btn");
 const randomButton = document.getElementById("random-btn");
 const resetPlacementButton = document.getElementById("reset-placement-btn");
 const newGameButton = document.getElementById("new-game-btn");
+const gameOverOverlay = document.getElementById("game-over-overlay");
+const resultTitleElement = document.getElementById("result-title");
+const resultDetailElement = document.getElementById("result-detail");
+const playAgainButton = document.getElementById("play-again-btn");
 
 /** Builds the 100 cell buttons once per board and returns them in index order. */
 function buildBoardCells(boardElement, label) {
@@ -198,6 +202,10 @@ function renderAll() {
   });
   renderFleetStatus(game.playerBoard, playerFleetElement);
   renderFleetStatus(game.enemyBoard, enemyFleetElement);
+  // Only the board the player can actually click is marked interactive, so the
+  // hover affordance never promises a click that would do nothing: their own
+  // board during placement, the enemy board on their turn, neither otherwise.
+  playerBoardElement.classList.toggle("interactive", game.phase === "placement");
   enemyBoardElement.classList.toggle(
     "interactive",
     game.phase === "playing" && game.turn === "player"
@@ -369,10 +377,19 @@ function endGame(winner) {
   if (winner === "player") {
     setStatus("Victory! You sank the entire enemy fleet.");
     addLogEntry("Game over - you win!");
+    showGameOverOverlay("You won!", "You sank the entire enemy fleet.");
   } else {
     setStatus("Defeat. The AI sank your entire fleet.");
     addLogEntry("Game over - the AI wins.");
+    showGameOverOverlay("You lost", "The AI sank your entire fleet.");
   }
+}
+
+function showGameOverOverlay(title, detail) {
+  resultTitleElement.textContent = title;
+  resultDetailElement.textContent = detail;
+  gameOverOverlay.hidden = false;
+  playAgainButton.focus();
 }
 
 /* ================================================================== *
@@ -591,6 +608,7 @@ function newGame() {
   };
   placeFleetRandomly(game.enemyBoard);
   placementPanel.hidden = false;
+  gameOverOverlay.hidden = true;
   logElement.innerHTML = "";
   clearPreview();
   updatePlacementHint();
@@ -642,5 +660,6 @@ resetPlacementButton.addEventListener("click", () => {
 });
 
 newGameButton.addEventListener("click", newGame);
+playAgainButton.addEventListener("click", newGame);
 
 newGame();
