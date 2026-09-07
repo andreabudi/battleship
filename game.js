@@ -714,6 +714,14 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+// Clicking the scrim would otherwise blur to <body> without firing focusin,
+// leaving Shift+Tab to escape the trap.
+gameOverOverlay.addEventListener("mousedown", (event) => {
+  if (event.target.closest("button")) return;
+  event.preventDefault();
+  playAgainButton.focus();
+});
+
 // Last line of defence for browsers without `inert`: pull any focus that lands
 // outside the overlay back into it.
 document.addEventListener("focusin", (event) => {
