@@ -17,6 +17,8 @@
   --cell-max: 34px;
   /* 10 cells + 9 inner gaps + the padding on both sides */
   --board-cap: calc(var(--cell-max) * 10 + var(--cell-gap) * 11);
+  --cell-min: 14px;
+  --board-min: calc(var(--cell-min) * 10 + var(--cell-gap) * 11);
 }
 
 * {
@@ -461,6 +463,18 @@ button:disabled {
   }
 }
 
+/* A board must stay tappable even when the height available collapses, so in
+   landscape it stops shrinking at --cell-min and the placement screen scrolls
+   instead - the same trade already accepted at 320px portrait. The floor is a
+   min-height on the container (the page then grows) rather than a min on the
+   board, and it is gated on a width that can fit two floored boards, because
+   flooring against width is what caused the 320px overflow in R18. */
+@media (min-width: 420px) and (max-height: 600px) and (orientation: landscape) {
+  .board-wrapper {
+    min-height: calc(var(--board-min) + 3.5rem);
+  }
+}
+
 /* Landscape phones: height is the scarce dimension, so the chrome above and
    below the boards is trimmed hard to leave the grids as much of it as
    possible. */
@@ -546,5 +560,68 @@ button:disabled {
   .log {
     max-height: 44px;
     font-size: 0.75rem;
+  }
+
+  /* Placement in landscape: the controls move into a column beside the boards,
+     so the scarce vertical budget goes to the grids instead of a stack of
+     buttons. The grid only applies while the panel is on screen; firing keeps
+     the plain column layout. */
+  main:has(#placement-panel:not([hidden])) {
+    display: grid;
+    grid-template-columns: minmax(120px, 21%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place boards"
+      "place log";
+    column-gap: 8px;
+  }
+
+  #placement-panel {
+    grid-area: place;
+    margin-bottom: 0;
+    overflow-y: auto;
+  }
+
+  #placement-panel h2 {
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+  }
+
+  #placement-panel .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  main:has(#placement-panel:not([hidden])) .boards {
+    grid-area: boards;
+  }
+
+  main:has(#placement-panel:not([hidden])) > .panel:last-of-type {
+    grid-area: log;
+  }
+}
+
+/* Very short landscape (568x320 and similar): with the boards floored at
+   --cell-min, the firing phase only fits if the log and the labels around the
+   grids give up their remaining slack - per the rule that the chrome shrinks
+   before the boards do. */
+@media (max-height: 360px) and (orientation: landscape) {
+  main > .panel:last-of-type {
+    padding: 4px 6px;
+  }
+
+  .log {
+    max-height: 22px;
+  }
+
+  .board-wrapper h2 {
+    font-size: 0.65rem;
+    margin-bottom: 2px;
+  }
+
+  .fleet-list {
+    margin-top: 2px;
+    font-size: 0.55rem;
   }
 }
