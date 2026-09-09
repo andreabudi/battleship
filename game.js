@@ -144,6 +144,14 @@ const rotateButton = document.getElementById("rotate-btn");
 const randomButton = document.getElementById("random-btn");
 const resetPlacementButton = document.getElementById("reset-placement-btn");
 const newGameButton = document.getElementById("new-game-btn");
+const gameOverOverlay = document.getElementById("game-over-overlay");
+const resultTitleElement = document.getElementById("result-title");
+const resultDetailElement = document.getElementById("result-detail");
+const playAgainButton = document.getElementById("play-again-btn");
+/* Everything the overlay covers; made inert while the overlay is open. */
+const pageContentElements = Array.from(
+  document.querySelectorAll("body > header, body > main")
+);
 
 /** Builds the 100 cell buttons once per board and returns them in index order. */
 function buildBoardCells(boardElement, label) {
@@ -198,6 +206,10 @@ function renderAll() {
   });
   renderFleetStatus(game.playerBoard, playerFleetElement);
   renderFleetStatus(game.enemyBoard, enemyFleetElement);
+  // Only the board the player can actually click is marked interactive, so the
+  // hover affordance never promises a click that would do nothing: their own
+  // board during placement, the enemy board on their turn, neither otherwise.
+  playerBoardElement.classList.toggle("interactive", game.phase === "placement");
   enemyBoardElement.classList.toggle(
     "interactive",
     game.phase === "playing" && game.turn === "player"
@@ -369,9 +381,76 @@ function endGame(winner) {
   if (winner === "player") {
     setStatus("Victory! You sank the entire enemy fleet.");
     addLogEntry("Game over - you win!");
+    showGameOverOverlay("You won!", "You sank the entire enemy fleet.");
   } else {
     setStatus("Defeat. The AI sank your entire fleet.");
     addLogEntry("Game over - the AI wins.");
+    showGameOverOverlay("You lost", "The AI sank your entire fleet.");
+  }
+}
+
+function showGameOverOverlay(title, detail) {
+  resultTitleElement.textContent = title;
+  resultDetailElement.textContent = detail;
+  gameOverOverlay.hidden = false;
+  // The rest of the page is inert while the result is up, so neither the mouse
+  // nor the keyboard can reach the finished boards behind the overlay.
+  pageContentElements.forEach((element) => {
+    element.setAttribute("inert", "");
+    element.setAttribute("aria-hidden", "true");
+  });
+  playAgainButton.focus();
+}
+
+function hideGameOverOverlay() {
+  gameOverOverlay.hidden = true;
+  pageContentElements.forEach((element) => {
+    element.removeAttribute("inert");
+    element.removeAttribute("aria-hidden");
+  });
+}
+
+function isGameOverOverlayOpen() {
+  return !gameOverOverlay.hidden;
+}
+
+/** Focusable controls inside the overlay, in tab order. */
+function overlayFocusableElements() {
+  return Array.from(
+    gameOverOverlay.querySelectorAll("button, [href], input, select, textarea")
+  );
+}
+
+/**
+ * Focus trap. `inert` already keeps focus out of the page behind the overlay
+ * in browsers that support it; wrapping Tab explicitly also keeps the cycle
+ * inside the card in browsers that do not, and stops focus escaping to the
+ * browser chrome and back into the page.
+ */
+function handleOverlayKeydown(event) {
+  if (!isGameOverOverlayOpen()) return;
+
+  if (event.key === "Escape") {
+    // Dismissing would leave a finished game on screen with no visible way to
+    // continue, so Escape only reaffirms the one available action.
+    event.preventDefault();
+    playAgainButton.focus();
+    return;
+  }
+  if (event.key !== "Tab") return;
+
+  const focusable = overlayFocusableElements();
+  if (focusable.length === 0) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const movingBackwards = event.shiftKey;
+
+  if (movingBackwards && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!movingBackwards && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
   }
 }
 
@@ -589,13 +668,18 @@ function newGame() {
     ai: createAiState(),
     aiTimeoutId: null,
   };
+  const overlayWasOpen = isGameOverOverlayOpen();
   placeFleetRandomly(game.enemyBoard);
   placementPanel.hidden = false;
+  hideGameOverOverlay();
   logElement.innerHTML = "";
   clearPreview();
   updatePlacementHint();
   setStatus("Place your fleet to begin.");
   renderAll();
+  // Closing the overlay must not drop focus onto <body>: hand it to the first
+  // control of the phase the player lands in.
+  if (overlayWasOpen) randomButton.focus();
 }
 
 playerBoardElement.addEventListener("click", (event) => {
@@ -621,8 +705,28 @@ enemyBoardElement.addEventListener("click", (event) => {
 rotateButton.addEventListener("click", toggleOrientation);
 
 document.addEventListener("keydown", (event) => {
+  if (isGameOverOverlayOpen()) {
+    handleOverlayKeydown(event);
+    return;
+  }
   if (event.key.toLowerCase() === "r" && game.phase === "placement") {
     toggleOrientation();
+  }
+});
+
+// Clicking the scrim would otherwise blur to <body> without firing focusin,
+// leaving Shift+Tab to escape the trap.
+gameOverOverlay.addEventListener("mousedown", (event) => {
+  if (event.target.closest("button")) return;
+  event.preventDefault();
+  playAgainButton.focus();
+});
+
+// Last line of defence for browsers without `inert`: pull any focus that lands
+// outside the overlay back into it.
+document.addEventListener("focusin", (event) => {
+  if (isGameOverOverlayOpen() && !gameOverOverlay.contains(event.target)) {
+    playAgainButton.focus();
   }
 });
 
@@ -642,5 +746,6 @@ resetPlacementButton.addEventListener("click", () => {
 });
 
 newGameButton.addEventListener("click", newGame);
+playAgainButton.addEventListener("click", newGame);
 
 newGame();
