@@ -11,8 +11,11 @@
   --hover: #a9d0ea;
   --cell-gap: 2px;
   /* Fixed cell size: grid tracks never depend on cell content, so marking a
-     cell can never resize a row or reflow the board. */
-  --cell-size: clamp(24px, 7.6vw, 34px);
+     cell can never resize a row or reflow the board.
+     Both 10-wide boards sit side by side, so a cell may take at most a
+     twentieth of the width left after padding, borders and gaps (~100px on a
+     phone). The 34px cap keeps desktop exactly as it was. */
+  --cell-size: clamp(13px, calc((100vw - 100px) / 20), 34px);
 }
 
 * {
@@ -215,6 +218,13 @@ button:disabled {
   background: var(--preview-bad);
 }
 
+/* A tap-selected (armed) preview: outlined so it reads as a pending choice
+   rather than a transient hover, since touch has no hover to fall back on. */
+.cell.preview-pending {
+  outline: 2px solid var(--sea-dark);
+  outline-offset: -2px;
+}
+
 .fleet-list {
   list-style: none;
   margin: 10px 0 0;
@@ -286,13 +296,61 @@ button:disabled {
   margin: 0 0 16px;
 }
 
+/* Phone layout: both boards must be on screen at once during the firing
+   phase, so they stay side by side and everything around them is compressed
+   rather than stacked. */
 @media (max-width: 700px) {
+  body {
+    padding: 8px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+
+  .status {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+
   .boards {
-    flex-direction: column;
-    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 
   .board-wrapper {
-    width: 100%;
+    flex: 1 1 0;
+    padding: 6px;
+  }
+
+  .board-wrapper h2 {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+
+  .panel {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .controls button {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .fleet-list {
+    margin-top: 6px;
+    gap: 3px;
+    font-size: 0.65rem;
+  }
+
+  .fleet-list li {
+    padding: 2px 5px;
+  }
+
+  .log {
+    max-height: 96px;
+    font-size: 0.8rem;
   }
 }

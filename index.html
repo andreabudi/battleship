@@ -16,13 +16,15 @@
     <section id="placement-panel" class="panel">
       <h2>Place your fleet</h2>
       <p class="hint">
-        Click a cell on your waters to place
+        <span id="placement-instruction">Click a cell on your waters to place</span>
         <strong id="next-ship-name">Carrier</strong>
         (<span id="next-ship-size">5</span> cells,
         <span id="orientation-label">horizontal</span>).
       </p>
       <div class="controls">
         <button type="button" id="rotate-btn">Rotate (R)</button>
+        <button type="button" id="confirm-placement-btn" hidden>Confirm</button>
+        <button type="button" id="undo-ship-btn">Undo last ship</button>
         <button type="button" id="random-btn">Random placement</button>
         <button type="button" id="reset-placement-btn">Clear placement</button>
       </div>

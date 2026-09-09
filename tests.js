@@ -186,7 +186,53 @@ function runMixedClusterUnitTest() {
   report("Mixed cluster: sunk ship's cells resolved, leftover hit still pursued");
 }
 
+/**
+ * Tap placement: a first tap only arms a preview, Confirm commits it, an
+ * invalid preview cannot be confirmed, and Undo gives the ship back.
+ */
+function runTapPlacementTest() {
+  newGame();
+  usesTapPlacement = true;
+  const board = game.playerBoard;
+
+  selectPlacementCell(toIndex(0, 0));
+  assert(board.placedShipCount === 0, "a tap must not commit a placement");
+  assert(game.pendingIndex === toIndex(0, 0), "the tap should arm a preview");
+  assert(!confirmPlacementButton.disabled, "a legal preview must be confirmable");
+
+  selectPlacementCell(toIndex(3, 3));
+  assert(game.pendingIndex === toIndex(3, 3), "a second tap should move the preview");
+
+  toggleOrientation();
+  assert(game.pendingIndex === toIndex(3, 3), "rotating must keep the preview armed");
+
+  selectPlacementCell(toIndex(9, 9)); // a size-5 ship cannot fit in the corner
+  assert(confirmPlacementButton.disabled, "an invalid preview must not be confirmable");
+  commitPlacement(game.pendingIndex);
+  assert(board.placedShipCount === 0, "an invalid preview must not commit");
+
+  selectPlacementCell(toIndex(3, 3));
+  commitPlacement(game.pendingIndex);
+  assert(board.placedShipCount === 1, "Confirm should commit the armed placement");
+  assert(game.pendingIndex === null, "committing should disarm the preview");
+
+  undoLastShip();
+  assert(board.placedShipCount === 0, "Undo should remove the last ship");
+  assert(
+    board.shipIdAt.every((shipId) => shipId === null),
+    "Undo should free every cell of the removed ship"
+  );
+  assert(undoShipButton.disabled, "Undo must be unavailable with no ships placed");
+
+  newGame();
+  report(
+    "Tap placement: tap arms a preview, taps move it, rotate keeps it, " +
+      "invalid previews cannot be confirmed, Confirm places and Undo removes"
+  );
+}
+
 try {
+  runTapPlacementTest();
   runMixedClusterUnitTest();
   runFalseOrientationTest();
   runAdjacentShipsTest([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
