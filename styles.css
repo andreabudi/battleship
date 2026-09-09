@@ -10,16 +10,11 @@
   --preview-bad: #e07a5f;
   --hover: #a9d0ea;
   --cell-gap: 2px;
-  /* Fixed cell size: grid tracks never depend on cell content, so marking a
-     cell can never resize a row or reflow the board.
-     Both 10-wide boards sit side by side, so a cell may take at most a
-     twentieth of the width left over once the chrome around the two grids
-     (page padding, wrapper padding and borders, the gap between them and the
-     grid gaps) is subtracted. --board-chrome is that total and shrinks with
-     the padding in the narrow media queries below. The 34px cap keeps desktop
-     exactly as it was; the 8px floor is only reached below ~240px. */
-  --board-chrome: 100px;
-  --cell-size: clamp(8px, calc((100vw - var(--board-chrome)) / 20), 34px);
+  /* Largest a cell may get; reached on desktop, where the board is 362px as
+     before. Below that the board is sized from its container rather than from
+     the viewport, so a scrollbar appearing can never push a column out of
+     view. */
+  --cell-max: 34px;
 }
 
 * {
@@ -120,15 +115,21 @@ button:disabled {
   padding: 12px;
 }
 
-/* Fixed 10x10 tracks. The cell size scales with the viewport but every track
-   is the same fixed length, so the grid geometry is independent of state. */
+/* Ten equal tracks in a square box: the board fills the width its wrapper
+   gives it (capped at the desktop size) and every track is an equal fraction
+   of that, so the geometry depends only on the container - never on cell
+   state, and never on the viewport width, which would include a scrollbar. */
 .board {
   display: grid;
-  grid-template-columns: repeat(10, var(--cell-size));
-  grid-template-rows: repeat(10, var(--cell-size));
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
   gap: var(--cell-gap);
-  width: max-content;
-  max-width: 100%;
+  width: 100%;
+  aspect-ratio: 1;
+  /* Lets the markers inside be sized as a fraction of the board (cqw). */
+  container-type: size;
+  /* 10 cells + 9 inner gaps + the padding on both sides */
+  max-width: calc(var(--cell-max) * 10 + var(--cell-gap) * 11);
   margin: 0 auto;
   background: #b9d4e6;
   padding: var(--cell-gap);
@@ -138,8 +139,11 @@ button:disabled {
 
 .cell {
   position: relative;
-  width: var(--cell-size);
-  height: var(--cell-size);
+  width: 100%;
+  height: 100%;
+  /* Marker size follows the board, not the viewport: 6.6% of the board width
+     is ~0.7 of a cell at every size. */
+  font-size: 6.6cqw;
   background: var(--sea);
   border: none;
   border-radius: 2px;
@@ -157,7 +161,7 @@ button:disabled {
   left: 50%;
   transform: translate(-50%, -50%);
   line-height: 1;
-  font-size: calc(var(--cell-size) * 0.7);
+  font-size: 1em;
 }
 
 /* Hover affordance is opt-in per board: `interactive` is set only on the board
@@ -186,8 +190,8 @@ button:disabled {
 
 .cell.miss::after {
   content: "";
-  width: calc(var(--cell-size) * 0.3);
-  height: calc(var(--cell-size) * 0.3);
+  width: 30%;
+  height: 30%;
   border-radius: 50%;
   background: var(--miss-marker);
 }
@@ -304,12 +308,6 @@ button:disabled {
    phase, so they stay side by side and everything around them is compressed
    rather than stacked. */
 @media (max-width: 700px) {
-  :root {
-    /* 16 page padding + 24 wrapper padding + 4 borders + 8 gap + 8 grid
-       padding + 36 cell gaps */
-    --board-chrome: 96px;
-  }
-
   body {
     padding: 8px;
   }
@@ -369,12 +367,6 @@ button:disabled {
    further so the cells keep some size instead of bottoming out on the floor
    of the clamp. */
 @media (max-width: 360px) {
-  :root {
-    /* 8 page padding + 16 wrapper padding + 4 borders + 6 gap + 8 grid
-       padding + 36 cell gaps */
-    --board-chrome: 78px;
-  }
-
   body {
     padding: 4px;
   }
