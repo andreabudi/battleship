@@ -13,9 +13,13 @@
   /* Fixed cell size: grid tracks never depend on cell content, so marking a
      cell can never resize a row or reflow the board.
      Both 10-wide boards sit side by side, so a cell may take at most a
-     twentieth of the width left after padding, borders and gaps (~100px on a
-     phone). The 34px cap keeps desktop exactly as it was. */
-  --cell-size: clamp(13px, calc((100vw - 100px) / 20), 34px);
+     twentieth of the width left over once the chrome around the two grids
+     (page padding, wrapper padding and borders, the gap between them and the
+     grid gaps) is subtracted. --board-chrome is that total and shrinks with
+     the padding in the narrow media queries below. The 34px cap keeps desktop
+     exactly as it was; the 8px floor is only reached below ~240px. */
+  --board-chrome: 100px;
+  --cell-size: clamp(8px, calc((100vw - var(--board-chrome)) / 20), 34px);
 }
 
 * {
@@ -300,6 +304,12 @@ button:disabled {
    phase, so they stay side by side and everything around them is compressed
    rather than stacked. */
 @media (max-width: 700px) {
+  :root {
+    /* 16 page padding + 24 wrapper padding + 4 borders + 8 gap + 8 grid
+       padding + 36 cell gaps */
+    --board-chrome: 96px;
+  }
+
   body {
     padding: 8px;
   }
@@ -352,5 +362,58 @@ button:disabled {
   .log {
     max-height: 96px;
     font-size: 0.8rem;
+  }
+}
+
+/* Very narrow phones (320px and down): trim the chrome around the grids
+   further so the cells keep some size instead of bottoming out on the floor
+   of the clamp. */
+@media (max-width: 360px) {
+  :root {
+    /* 8 page padding + 16 wrapper padding + 4 borders + 6 gap + 8 grid
+       padding + 36 cell gaps */
+    --board-chrome: 78px;
+  }
+
+  body {
+    padding: 4px;
+  }
+
+  .boards {
+    gap: 6px;
+  }
+
+  .board-wrapper {
+    padding: 4px;
+  }
+
+  .fleet-list {
+    font-size: 0.6rem;
+  }
+
+  h1 {
+    font-size: 1.05rem;
+  }
+
+  .hint {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+
+  .panel {
+    margin-bottom: 6px;
+  }
+
+  .controls {
+    gap: 6px;
+  }
+
+  .controls button {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .log {
+    max-height: 60px;
   }
 }
