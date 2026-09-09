@@ -84,12 +84,39 @@ function computeShipCells(board, row, col, size, orientation) {
   return cells;
 }
 
+/**
+ * The on-board cells a ship would cover, ignoring legality. Used by the
+ * preview so an invalid placement can be shown in full (the part that runs off
+ * the board simply has no cells to mark) rather than as a single red cell.
+ */
+function computeFootprintCells(row, col, size, orientation) {
+  const cells = [];
+  for (let step = 0; step < size; step += 1) {
+    const cellRow = orientation === VERTICAL ? row + step : row;
+    const cellCol = orientation === HORIZONTAL ? col + step : col;
+    if (isInsideBoard(cellRow, cellCol)) cells.push(toIndex(cellRow, cellCol));
+  }
+  return cells;
+}
+
 function placeShip(board, ship, cells) {
   ship.cells = cells;
   cells.forEach((index) => {
     board.shipIdAt[index] = ship.id;
   });
   board.placedShipCount += 1;
+}
+
+/** Removes the most recently placed ship, returning it (or null if none). */
+function unplaceLastShip(board) {
+  if (board.placedShipCount === 0) return null;
+  const ship = board.ships[board.placedShipCount - 1];
+  ship.cells.forEach((index) => {
+    board.shipIdAt[index] = null;
+  });
+  ship.cells = [];
+  board.placedShipCount -= 1;
+  return ship;
 }
 
 function placeFleetRandomly(board) {
@@ -140,7 +167,12 @@ const placementPanel = document.getElementById("placement-panel");
 const nextShipNameElement = document.getElementById("next-ship-name");
 const nextShipSizeElement = document.getElementById("next-ship-size");
 const orientationLabelElement = document.getElementById("orientation-label");
+const placementInstructionElement = document.getElementById(
+  "placement-instruction"
+);
 const rotateButton = document.getElementById("rotate-btn");
+const confirmPlacementButton = document.getElementById("confirm-placement-btn");
+const undoShipButton = document.getElementById("undo-ship-btn");
 const randomButton = document.getElementById("random-btn");
 const resetPlacementButton = document.getElementById("reset-placement-btn");
 const newGameButton = document.getElementById("new-game-btn");
@@ -214,6 +246,8 @@ function renderAll() {
     "interactive",
     game.phase === "playing" && game.turn === "player"
   );
+  // renderBoard resets every cell's classes, so the preview is repainted last.
+  paintPreview();
 }
 
 function setStatus(message) {
@@ -230,60 +264,111 @@ function addLogEntry(message) {
  * 3. Player placement flow
  * ------------------------------------------------------------------ */
 
+/**
+ * Touch screens have no hover, so a tap cannot both preview and commit. On a
+ * touch interaction placement becomes select-then-confirm: the first tap only
+ * arms `pendingIndex`, and Confirm commits it. A mouse keeps the original
+ * hover-preview / click-to-place flow. The mode follows the pointer that was
+ * last used rather than the device, so hybrid laptops behave sensibly.
+ */
+let usesTapPlacement = window.matchMedia("(hover: none)").matches;
+
 function updatePlacementHint() {
   const ship = game.playerBoard.ships[game.playerBoard.placedShipCount];
   if (!ship) return;
   nextShipNameElement.textContent = ship.name;
   nextShipSizeElement.textContent = String(ship.size);
   orientationLabelElement.textContent = game.orientation;
+  placementInstructionElement.textContent = usesTapPlacement
+    ? "Tap a cell on your waters to preview, then Confirm, to place"
+    : "Click a cell on your waters to place";
 }
 
-function clearPreview() {
+/** The cells a preview at `index` covers, and whether it may be committed. */
+function previewPlacement(index) {
+  const ship = game.playerBoard.ships[game.playerBoard.placedShipCount];
+  if (!ship) return null;
+  const row = toRow(index);
+  const col = toCol(index);
+  const legalCells = computeShipCells(
+    game.playerBoard,
+    row,
+    col,
+    ship.size,
+    game.orientation
+  );
+  return {
+    ship,
+    isValid: legalCells !== null,
+    cells: legalCells || computeFootprintCells(row, col, ship.size, game.orientation),
+  };
+}
+
+/** Repaints the preview from `game.previewIndex`; safe to call after any render. */
+function paintPreview() {
   playerCellElements.forEach((cellElement) => {
-    cellElement.classList.remove("preview-ok", "preview-bad");
+    cellElement.classList.remove("preview-ok", "preview-bad", "preview-pending");
+  });
+  if (game.phase !== "placement" || game.previewIndex === null) return;
+
+  const preview = previewPlacement(game.previewIndex);
+  if (!preview) return;
+  const stateClass = preview.isValid ? "preview-ok" : "preview-bad";
+  preview.cells.forEach((cellIndex) => {
+    playerCellElements[cellIndex].classList.add(stateClass);
+    // A tap-selected preview is armed rather than merely hovered, so it gets an
+    // extra outline that survives the pointer leaving the board.
+    if (game.pendingIndex !== null) {
+      playerCellElements[cellIndex].classList.add("preview-pending");
+    }
   });
 }
 
-function showPlacementPreview(index) {
-  clearPreview();
-  if (game.phase !== "placement") return;
-  const ship = game.playerBoard.ships[game.playerBoard.placedShipCount];
-  if (!ship) return;
-
-  const cells = computeShipCells(
-    game.playerBoard,
-    toRow(index),
-    toCol(index),
-    ship.size,
-    game.orientation
-  );
-  if (cells) {
-    cells.forEach((cellIndex) =>
-      playerCellElements[cellIndex].classList.add("preview-ok")
-    );
-  } else {
-    playerCellElements[index].classList.add("preview-bad");
-  }
+function setPreview(index) {
+  game.previewIndex = index;
+  paintPreview();
 }
 
-function handlePlacementClick(index) {
-  const board = game.playerBoard;
-  const ship = board.ships[board.placedShipCount];
-  if (!ship) return;
+function clearPreview() {
+  game.previewIndex = null;
+  game.pendingIndex = null;
+  paintPreview();
+  updatePlacementControls();
+}
 
-  const cells = computeShipCells(
-    board,
-    toRow(index),
-    toCol(index),
-    ship.size,
-    game.orientation
+/** Confirm is only offered — and only enabled — when it would do something. */
+function updatePlacementControls() {
+  const pendingPreview =
+    game.pendingIndex === null ? null : previewPlacement(game.pendingIndex);
+  confirmPlacementButton.hidden = !usesTapPlacement;
+  confirmPlacementButton.disabled = !pendingPreview || !pendingPreview.isValid;
+  undoShipButton.disabled = game.playerBoard.placedShipCount === 0;
+}
+
+/** Tap flow: arm a placement without committing it. */
+function selectPlacementCell(index) {
+  const preview = previewPlacement(index);
+  if (!preview) return;
+  game.pendingIndex = index;
+  setPreview(index);
+  updatePlacementControls();
+  setStatus(
+    preview.isValid
+      ? `${preview.ship.name} at ${formatCoordinate(index)} - Confirm to place, or Rotate.`
+      : `${preview.ship.name} does not fit at ${formatCoordinate(index)}. Rotate or pick another cell.`
   );
-  if (!cells) {
-    setStatus(`${ship.name} does not fit there. Try another cell or rotate.`);
+}
+
+function commitPlacement(index) {
+  const board = game.playerBoard;
+  const preview = previewPlacement(index);
+  if (!preview) return;
+  if (!preview.isValid) {
+    setStatus(`${preview.ship.name} does not fit there. Try another cell or rotate.`);
     return;
   }
 
-  placeShip(board, ship, cells);
+  placeShip(board, preview.ship, preview.cells);
   clearPreview();
   renderAll();
 
@@ -291,14 +376,39 @@ function handlePlacementClick(index) {
     startBattle();
   } else {
     updatePlacementHint();
-    setStatus(`${ship.name} placed. Next: ${board.ships[board.placedShipCount].name}.`);
+    setStatus(
+      `${preview.ship.name} placed. Next: ${board.ships[board.placedShipCount].name}.`
+    );
   }
+}
+
+function handlePlacementCellActivation(index) {
+  if (usesTapPlacement) {
+    selectPlacementCell(index);
+  } else {
+    commitPlacement(index);
+  }
+}
+
+function undoLastShip() {
+  const removed = unplaceLastShip(game.playerBoard);
+  if (!removed) return;
+  clearPreview();
+  updatePlacementHint();
+  renderAll();
+  setStatus(`${removed.name} removed. Place it again.`);
 }
 
 function toggleOrientation() {
   game.orientation = game.orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
   updatePlacementHint();
-  clearPreview();
+  // Rotating redraws the current preview in place, so a tap-selected placement
+  // can be rotated without re-tapping (and a hovered one without moving).
+  if (game.pendingIndex !== null) {
+    selectPlacementCell(game.pendingIndex);
+    return;
+  }
+  paintPreview();
 }
 
 /* ------------------------------------------------------------------ *
@@ -667,6 +777,8 @@ function newGame() {
     enemyBoard: createBoard(),
     ai: createAiState(),
     aiTimeoutId: null,
+    previewIndex: null,
+    pendingIndex: null,
   };
   const overlayWasOpen = isGameOverOverlayOpen();
   placeFleetRandomly(game.enemyBoard);
@@ -682,19 +794,39 @@ function newGame() {
   if (overlayWasOpen) randomButton.focus();
 }
 
+// The pointer that starts the interaction decides the placement flow, so a
+// touch on a hybrid device switches to tap-and-confirm and a mouse switches
+// back.
+playerBoardElement.addEventListener("pointerdown", (event) => {
+  const nowTapPlacement = event.pointerType !== "mouse";
+  if (nowTapPlacement === usesTapPlacement) return;
+  usesTapPlacement = nowTapPlacement;
+  updatePlacementHint();
+  updatePlacementControls();
+});
+
 playerBoardElement.addEventListener("click", (event) => {
   const cell = event.target.closest(".cell");
   if (!cell || game.phase !== "placement") return;
-  handlePlacementClick(Number(cell.dataset.index));
+  handlePlacementCellActivation(Number(cell.dataset.index));
 });
 
 playerBoardElement.addEventListener("mouseover", (event) => {
   const cell = event.target.closest(".cell");
-  if (!cell) return;
-  showPlacementPreview(Number(cell.dataset.index));
+  // A tap-selected preview stays put until it is confirmed or moved.
+  if (!cell || game.phase !== "placement" || game.pendingIndex !== null) return;
+  setPreview(Number(cell.dataset.index));
 });
 
-playerBoardElement.addEventListener("mouseleave", clearPreview);
+playerBoardElement.addEventListener("mouseleave", () => {
+  if (game.pendingIndex === null) setPreview(null);
+});
+
+confirmPlacementButton.addEventListener("click", () => {
+  if (game.pendingIndex !== null) commitPlacement(game.pendingIndex);
+});
+
+undoShipButton.addEventListener("click", undoLastShip);
 
 enemyBoardElement.addEventListener("click", (event) => {
   const cell = event.target.closest(".cell");

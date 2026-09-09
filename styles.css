@@ -10,9 +10,11 @@
   --preview-bad: #e07a5f;
   --hover: #a9d0ea;
   --cell-gap: 2px;
-  /* Fixed cell size: grid tracks never depend on cell content, so marking a
-     cell can never resize a row or reflow the board. */
-  --cell-size: clamp(24px, 7.6vw, 34px);
+  /* Largest a cell may get; reached on desktop, where the board is 362px as
+     before. Below that the board is sized from its container rather than from
+     the viewport, so a scrollbar appearing can never push a column out of
+     view. */
+  --cell-max: 34px;
 }
 
 * {
@@ -113,15 +115,21 @@ button:disabled {
   padding: 12px;
 }
 
-/* Fixed 10x10 tracks. The cell size scales with the viewport but every track
-   is the same fixed length, so the grid geometry is independent of state. */
+/* Ten equal tracks in a square box: the board fills the width its wrapper
+   gives it (capped at the desktop size) and every track is an equal fraction
+   of that, so the geometry depends only on the container - never on cell
+   state, and never on the viewport width, which would include a scrollbar. */
 .board {
   display: grid;
-  grid-template-columns: repeat(10, var(--cell-size));
-  grid-template-rows: repeat(10, var(--cell-size));
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
   gap: var(--cell-gap);
-  width: max-content;
-  max-width: 100%;
+  width: 100%;
+  aspect-ratio: 1;
+  /* Lets the markers inside be sized as a fraction of the board (cqw). */
+  container-type: size;
+  /* 10 cells + 9 inner gaps + the padding on both sides */
+  max-width: calc(var(--cell-max) * 10 + var(--cell-gap) * 11);
   margin: 0 auto;
   background: #b9d4e6;
   padding: var(--cell-gap);
@@ -131,8 +139,11 @@ button:disabled {
 
 .cell {
   position: relative;
-  width: var(--cell-size);
-  height: var(--cell-size);
+  width: 100%;
+  height: 100%;
+  /* Marker size follows the board, not the viewport: 6.6% of the board width
+     is ~0.7 of a cell at every size. */
+  font-size: 6.6cqw;
   background: var(--sea);
   border: none;
   border-radius: 2px;
@@ -150,7 +161,7 @@ button:disabled {
   left: 50%;
   transform: translate(-50%, -50%);
   line-height: 1;
-  font-size: calc(var(--cell-size) * 0.7);
+  font-size: 1em;
 }
 
 /* Hover affordance is opt-in per board: `interactive` is set only on the board
@@ -179,8 +190,8 @@ button:disabled {
 
 .cell.miss::after {
   content: "";
-  width: calc(var(--cell-size) * 0.3);
-  height: calc(var(--cell-size) * 0.3);
+  width: 30%;
+  height: 30%;
   border-radius: 50%;
   background: var(--miss-marker);
 }
@@ -213,6 +224,13 @@ button:disabled {
 .cell.preview-bad,
 .board.interactive .cell.preview-bad:not(.fired):hover {
   background: var(--preview-bad);
+}
+
+/* A tap-selected (armed) preview: outlined so it reads as a pending choice
+   rather than a transient hover, since touch has no hover to fall back on. */
+.cell.preview-pending {
+  outline: 2px solid var(--sea-dark);
+  outline-offset: -2px;
 }
 
 .fleet-list {
@@ -286,13 +304,108 @@ button:disabled {
   margin: 0 0 16px;
 }
 
+/* Phone layout: both boards must be on screen at once during the firing
+   phase, so they stay side by side and everything around them is compressed
+   rather than stacked. */
 @media (max-width: 700px) {
+  body {
+    padding: 8px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+
+  .status {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+
   .boards {
-    flex-direction: column;
-    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 8px;
   }
 
   .board-wrapper {
-    width: 100%;
+    flex: 1 1 0;
+    padding: 6px;
+  }
+
+  .board-wrapper h2 {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+
+  .panel {
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .controls button {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .fleet-list {
+    margin-top: 6px;
+    gap: 3px;
+    font-size: 0.65rem;
+  }
+
+  .fleet-list li {
+    padding: 2px 5px;
+  }
+
+  .log {
+    max-height: 96px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Very narrow phones (320px and down): trim the chrome around the grids
+   further so the cells keep some size instead of bottoming out on the floor
+   of the clamp. */
+@media (max-width: 360px) {
+  body {
+    padding: 4px;
+  }
+
+  .boards {
+    gap: 6px;
+  }
+
+  .board-wrapper {
+    padding: 4px;
+  }
+
+  .fleet-list {
+    font-size: 0.6rem;
+  }
+
+  h1 {
+    font-size: 1.05rem;
+  }
+
+  .hint {
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+  }
+
+  .panel {
+    margin-bottom: 6px;
+  }
+
+  .controls {
+    gap: 6px;
+  }
+
+  .controls button {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .log {
+    max-height: 60px;
   }
 }
