@@ -63,6 +63,7 @@
         <h2>Game</h2>
         <div class="controls">
           <button type="button" id="new-game-btn">New game</button>
+          <button type="button" id="rules-btn" aria-haspopup="dialog">Rules</button>
         </div>
       </section>
       <section id="log-panel" class="panel log-panel">
@@ -76,7 +77,40 @@
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="result-title">
       <h2 id="result-title">You won!</h2>
       <p id="result-detail"></p>
-      <button type="button" id="play-again-btn">Play again</button>
+      <div class="controls overlay-actions">
+        <button type="button" id="play-again-btn">Play again</button>
+        <button type="button" id="result-rules-btn" class="secondary" aria-haspopup="dialog">Rules</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rules-overlay" class="overlay rules-overlay" hidden>
+    <div class="overlay-card rules-card" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <button type="button" id="rules-close-btn" class="close-btn" aria-label="Close rules">&times;</button>
+      <h2 id="rules-title">How to play</h2>
+
+      <h3>Goal</h3>
+      <p>Sink all 5 enemy ships before the AI sinks yours.</p>
+
+      <h3>Placing your fleet</h3>
+      <ul>
+        <li>Select a ship in the fleet list, then click a cell on <strong>Your waters</strong> to place it. On a phone, tap a cell to preview and press <strong>Confirm</strong>.</li>
+        <li>Press <strong>R</strong> or the <strong>Rotate (R)</strong> button to switch between horizontal and vertical.</li>
+        <li>Ships cannot overlap or go off the board; an invalid spot shows in red.</li>
+        <li>Click a placed ship to pick it up and move it. Use <strong>Undo last ship</strong>, <strong>Random placement</strong> or <strong>Clear all</strong> to change your mind.</li>
+        <li><strong>Start game</strong> unlocks once all 5 ships are placed.</li>
+      </ul>
+      <p class="rules-fleet">Fleet: Carrier&nbsp;5 &middot; Battleship&nbsp;4 &middot; Cruiser&nbsp;3 &middot; Submarine&nbsp;3 &middot; Destroyer&nbsp;2</p>
+
+      <h3>Playing</h3>
+      <ul>
+        <li>You and the AI take turns firing one shot each. Click a cell on <strong>Enemy waters</strong> to fire.</li>
+        <li><span class="legend legend-hit">&times;</span> <strong>Hit</strong>: a red cross on the cell. <span class="legend legend-miss"></span> <strong>Miss</strong>: a dark cell with a dot. <span class="legend legend-sunk">&times;</span> <strong>Sunk</strong>: the whole ship darkens and its wreck is revealed.</li>
+        <li>The AI's shots appear on Your waters. The <strong>Battle log</strong> records every shot.</li>
+      </ul>
+
+      <h3>Winning</h3>
+      <p>The first to sink the whole enemy fleet wins. <strong>New game</strong> starts over at any time.</p>
     </div>
   </div>
 
