@@ -65,6 +65,8 @@ function createBoard() {
     })),
     shipIdAt: new Array(BOARD_SIZE * BOARD_SIZE).fill(null),
     firedAt: new Array(BOARD_SIZE * BOARD_SIZE).fill(false),
+    /* Ship ids in the order they were placed, so Undo works in any order. */
+    placementOrder: [],
     placedShipCount: 0,
     sunkShipCount: 0,
   };
@@ -104,23 +106,41 @@ function placeShip(board, ship, cells) {
   cells.forEach((index) => {
     board.shipIdAt[index] = ship.id;
   });
+  board.placementOrder.push(ship.id);
   board.placedShipCount += 1;
+}
+
+function isShipPlaced(ship) {
+  return ship.cells.length > 0;
+}
+
+/** Takes a placed ship off the board again, returning it. */
+function unplaceShip(board, ship) {
+  ship.cells.forEach((index) => {
+    board.shipIdAt[index] = null;
+  });
+  ship.cells = [];
+  board.placementOrder = board.placementOrder.filter((id) => id !== ship.id);
+  board.placedShipCount -= 1;
+  return ship;
 }
 
 /** Removes the most recently placed ship, returning it (or null if none). */
 function unplaceLastShip(board) {
   if (board.placedShipCount === 0) return null;
-  const ship = board.ships[board.placedShipCount - 1];
-  ship.cells.forEach((index) => {
-    board.shipIdAt[index] = null;
-  });
-  ship.cells = [];
-  board.placedShipCount -= 1;
-  return ship;
+  const lastId = board.placementOrder[board.placementOrder.length - 1];
+  return unplaceShip(board, board.ships[lastId]);
+}
+
+/** Orientation of a placed ship, derived from its cells. */
+function orientationOf(ship) {
+  if (ship.cells.length < 2) return HORIZONTAL;
+  return toRow(ship.cells[0]) === toRow(ship.cells[1]) ? HORIZONTAL : VERTICAL;
 }
 
 function placeFleetRandomly(board) {
   board.ships.forEach((ship) => {
+    if (isShipPlaced(ship)) return;
     let cells = null;
     while (cells === null) {
       const orientation = Math.random() < 0.5 ? HORIZONTAL : VERTICAL;
@@ -163,7 +183,13 @@ const playerFleetElement = document.getElementById("player-fleet");
 const enemyFleetElement = document.getElementById("enemy-fleet");
 const statusElement = document.getElementById("status");
 const logElement = document.getElementById("log");
+const mainElement = document.getElementById("game");
+const boardsElement = document.getElementById("boards");
+const enemyWrapperElement = document.getElementById("enemy-wrapper");
 const placementPanel = document.getElementById("placement-panel");
+const fleetPickerPanel = document.getElementById("fleet-picker-panel");
+const fleetPickerElement = document.getElementById("fleet-picker");
+const startGameButton = document.getElementById("start-game-btn");
 const nextShipNameElement = document.getElementById("next-ship-name");
 const nextShipSizeElement = document.getElementById("next-ship-size");
 const orientationLabelElement = document.getElementById("orientation-label");
@@ -231,6 +257,50 @@ function renderFleetStatus(board, listElement) {
   });
 }
 
+/**
+ * The fleet picker: one button per ship, built once. During placement it is
+ * how the player chooses which ship to place next, in any order; a placed
+ * ship's entry is disabled (click it on the board to pick it up again).
+ */
+function buildFleetPicker() {
+  fleetPickerElement.innerHTML = "";
+  return SHIP_TYPES.map((type, id) => {
+    const item = document.createElement("li");
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "fleet-option";
+    option.dataset.shipId = String(id);
+
+    const name = document.createElement("span");
+    name.className = "fleet-option-name";
+    name.textContent = `${type.name} (${type.size})`;
+
+    const cellsRow = document.createElement("span");
+    cellsRow.className = "fleet-option-cells";
+    cellsRow.setAttribute("aria-hidden", "true");
+    for (let step = 0; step < type.size; step += 1) {
+      cellsRow.appendChild(document.createElement("i"));
+    }
+
+    option.append(name, cellsRow);
+    item.appendChild(option);
+    fleetPickerElement.appendChild(item);
+    return option;
+  });
+}
+
+function renderFleetPicker() {
+  game.playerBoard.ships.forEach((ship, id) => {
+    const option = fleetOptionElements[id];
+    const placed = isShipPlaced(ship);
+    const selected = game.selectedShipId === id;
+    option.classList.toggle("placed", placed);
+    option.classList.toggle("selected", selected);
+    option.disabled = placed;
+    option.setAttribute("aria-pressed", String(selected));
+  });
+}
+
 function renderAll() {
   renderBoard(game.playerBoard, playerCellElements, { revealShips: true });
   renderBoard(game.enemyBoard, enemyCellElements, {
@@ -238,6 +308,10 @@ function renderAll() {
   });
   renderFleetStatus(game.playerBoard, playerFleetElement);
   renderFleetStatus(game.enemyBoard, enemyFleetElement);
+  if (game.phase === "placement") {
+    renderFleetPicker();
+    updatePlacementControls();
+  }
   // Only the board the player can actually click is marked interactive, so the
   // hover affordance never promises a click that would do nothing: their own
   // board during placement, the enemy board on their turn, neither otherwise.
@@ -273,20 +347,55 @@ function addLogEntry(message) {
  */
 let usesTapPlacement = window.matchMedia("(hover: none)").matches;
 
+/** The ship chosen in the fleet picker, or null once it is on the board. */
+function selectedShip() {
+  if (game.selectedShipId === null) return null;
+  const ship = game.playerBoard.ships[game.selectedShipId];
+  return isShipPlaced(ship) ? null : ship;
+}
+
+/** Selects a ship from the picker; null when nothing is left to place. */
+function selectShip(shipId) {
+  game.selectedShipId = shipId;
+  game.pendingIndex = null;
+  game.previewIndex = null;
+  updatePlacementHint();
+  renderAll();
+}
+
+/** The first ship still waiting to be placed, in fleet order, or null. */
+function nextUnplacedShipId() {
+  const ship = game.playerBoard.ships.find((candidate) => !isShipPlaced(candidate));
+  return ship ? ship.id : null;
+}
+
 function updatePlacementHint() {
-  const ship = game.playerBoard.ships[game.playerBoard.placedShipCount];
-  if (!ship) return;
+  const ship = selectedShip();
+  if (!ship) {
+    const allPlaced = game.playerBoard.placedShipCount === SHIP_TYPES.length;
+    placementInstructionElement.textContent = allPlaced
+      ? "Press Start game, or click a ship on the board to move it."
+      : "Select a ship from the list to place it.";
+    nextShipNameElement.textContent = allPlaced
+      ? "All ships placed"
+      : "No ship selected";
+    nextShipSizeElement.textContent = "";
+    orientationLabelElement.textContent = "";
+    placementPanel.classList.add("no-selection");
+    return;
+  }
+  placementPanel.classList.remove("no-selection");
   nextShipNameElement.textContent = ship.name;
   nextShipSizeElement.textContent = String(ship.size);
   orientationLabelElement.textContent = game.orientation;
   placementInstructionElement.textContent = usesTapPlacement
-    ? "Tap a cell on your waters to preview, then Confirm, to place"
-    : "Click a cell on your waters to place";
+    ? "Tap a cell on your waters to preview, then Confirm to place it"
+    : "Click a cell on your waters to place it";
 }
 
 /** The cells a preview at `index` covers, and whether it may be committed. */
 function previewPlacement(index) {
-  const ship = game.playerBoard.ships[game.playerBoard.placedShipCount];
+  const ship = selectedShip();
   if (!ship) return null;
   const row = toRow(index);
   const col = toCol(index);
@@ -343,6 +452,8 @@ function updatePlacementControls() {
   confirmPlacementButton.hidden = !usesTapPlacement;
   confirmPlacementButton.disabled = !pendingPreview || !pendingPreview.isValid;
   undoShipButton.disabled = game.playerBoard.placedShipCount === 0;
+  startGameButton.disabled =
+    game.playerBoard.placedShipCount !== SHIP_TYPES.length;
 }
 
 /** Tap flow: arm a placement without committing it. */
@@ -369,20 +480,46 @@ function commitPlacement(index) {
   }
 
   placeShip(board, preview.ship, preview.cells);
-  clearPreview();
-  renderAll();
+  // Move on to the next unplaced ship so a player who does not care about
+  // the order never has to touch the picker; they can still override it.
+  selectShip(nextUnplacedShipId());
 
   if (board.placedShipCount === SHIP_TYPES.length) {
-    startBattle();
+    setStatus(`${preview.ship.name} placed. All ships placed - press Start game.`);
   } else {
-    updatePlacementHint();
-    setStatus(
-      `${preview.ship.name} placed. Next: ${board.ships[board.placedShipCount].name}.`
-    );
+    setStatus(`${preview.ship.name} placed. Next: ${selectedShip().name}.`);
+  }
+}
+
+/**
+ * Clicking a placed ship during placement lifts it off the board and makes it
+ * the selected ship again, keeping its orientation. In tap mode the lifted
+ * ship stays armed at its old position so a stray tap costs nothing: Confirm
+ * simply puts it back.
+ */
+function pickUpShip(ship) {
+  const anchorIndex = ship.cells[0];
+  game.orientation = orientationOf(ship);
+  unplaceShip(game.playerBoard, ship);
+  selectShip(ship.id);
+  if (usesTapPlacement) {
+    selectPlacementCell(anchorIndex);
+  } else {
+    setPreview(anchorIndex);
+    setStatus(`${ship.name} picked up. Click a cell to place it again.`);
   }
 }
 
 function handlePlacementCellActivation(index) {
+  const shipId = game.playerBoard.shipIdAt[index];
+  if (shipId !== null) {
+    pickUpShip(game.playerBoard.ships[shipId]);
+    return;
+  }
+  if (!selectedShip()) {
+    setStatus("Select a ship from the list first.");
+    return;
+  }
   if (usesTapPlacement) {
     selectPlacementCell(index);
   } else {
@@ -393,9 +530,7 @@ function handlePlacementCellActivation(index) {
 function undoLastShip() {
   const removed = unplaceLastShip(game.playerBoard);
   if (!removed) return;
-  clearPreview();
-  updatePlacementHint();
-  renderAll();
+  selectShip(removed.id);
   setStatus(`${removed.name} removed. Place it again.`);
 }
 
@@ -416,9 +551,16 @@ function toggleOrientation() {
  * ------------------------------------------------------------------ */
 
 function startBattle() {
+  if (game.playerBoard.placedShipCount !== SHIP_TYPES.length) return;
   game.phase = "playing";
   game.turn = "player";
+  game.previewIndex = null;
+  game.pendingIndex = null;
   placementPanel.hidden = true;
+  fleetPickerPanel.hidden = true;
+  // The enemy board only exists in the document once the battle starts.
+  boardsElement.appendChild(enemyWrapperElement);
+  mainElement.classList.remove("placement");
   setStatus("Fleet ready. Fire at the enemy waters!");
   addLogEntry("Battle started.");
   renderAll();
@@ -764,6 +906,7 @@ function buildTargetQueue(board, unresolvedHits) {
 
 const playerCellElements = buildBoardCells(playerBoardElement, "Your waters");
 const enemyCellElements = buildBoardCells(enemyBoardElement, "Enemy waters");
+const fleetOptionElements = buildFleetPicker();
 
 let game;
 
@@ -779,15 +922,18 @@ function newGame() {
     aiTimeoutId: null,
     previewIndex: null,
     pendingIndex: null,
+    selectedShipId: 0,
   };
   const overlayWasOpen = isGameOverOverlayOpen();
   placeFleetRandomly(game.enemyBoard);
   placementPanel.hidden = false;
+  fleetPickerPanel.hidden = false;
+  enemyWrapperElement.remove();
+  mainElement.classList.add("placement");
   hideGameOverOverlay();
   logElement.innerHTML = "";
-  clearPreview();
   updatePlacementHint();
-  setStatus("Place your fleet to begin.");
+  setStatus("Select a ship and place it on your waters.");
   renderAll();
   // Closing the overlay must not drop focus onto <body>: hand it to the first
   // control of the phase the player lands in.
@@ -815,8 +961,24 @@ playerBoardElement.addEventListener("mouseover", (event) => {
   const cell = event.target.closest(".cell");
   // A tap-selected preview stays put until it is confirmed or moved.
   if (!cell || game.phase !== "placement" || game.pendingIndex !== null) return;
-  setPreview(Number(cell.dataset.index));
+  const index = Number(cell.dataset.index);
+  // Over a placed ship the click would pick it up, not place, so no preview.
+  setPreview(game.playerBoard.shipIdAt[index] === null ? index : null);
 });
+
+fleetPickerElement.addEventListener("click", (event) => {
+  const option = event.target.closest(".fleet-option");
+  if (!option || option.disabled || game.phase !== "placement") return;
+  const ship = game.playerBoard.ships[Number(option.dataset.shipId)];
+  selectShip(ship.id);
+  setStatus(
+    usesTapPlacement
+      ? `${ship.name} selected. Tap a cell on your waters to preview it.`
+      : `${ship.name} selected. Click a cell on your waters to place it.`
+  );
+});
+
+startGameButton.addEventListener("click", startBattle);
 
 playerBoardElement.addEventListener("mouseleave", () => {
   if (game.pendingIndex === null) setPreview(null);
@@ -865,16 +1027,14 @@ document.addEventListener("focusin", (event) => {
 randomButton.addEventListener("click", () => {
   game.playerBoard = createBoard();
   placeFleetRandomly(game.playerBoard);
-  clearPreview();
-  startBattle();
+  selectShip(null);
+  setStatus("Fleet placed at random. Press Start game, or click a ship to move it.");
 });
 
 resetPlacementButton.addEventListener("click", () => {
   game.playerBoard = createBoard();
-  clearPreview();
-  updatePlacementHint();
-  setStatus("Placement cleared. Place your fleet to begin.");
-  renderAll();
+  selectShip(0);
+  setStatus("Placement cleared. Select a ship and place it on your waters.");
 });
 
 newGameButton.addEventListener("click", newGame);
