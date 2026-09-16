@@ -687,10 +687,12 @@ main.placement .fleet-list {
   font-size: 0.85rem;
 }
 
+/* Sticky so the X stays on screen while a tall dialog is scrolled. */
 .rules-card .close-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: -8px -12px 0 0;
   width: 32px;
   height: 32px;
   padding: 0;
