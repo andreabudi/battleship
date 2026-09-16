@@ -619,6 +619,129 @@ main.placement .fleet-list {
   color: #fff;
 }
 
+.overlay-card .overlay-actions {
+  justify-content: center;
+}
+
+.overlay-card button.secondary {
+  background: #fff;
+  color: var(--sea-dark);
+}
+
+.overlay-card button.secondary:hover {
+  background: var(--sea-dark);
+  color: #fff;
+}
+
+/* Rules dialog: sits above the end-of-game overlay so it can be opened from
+   there too, and scrolls itself when taller than the viewport. */
+.rules-overlay {
+  z-index: 101;
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
+.rules-card {
+  position: relative;
+  text-align: left;
+  max-width: 480px;
+  width: 100%;
+  margin: auto 0;
+  padding: 20px 24px 22px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.rules-card h2 {
+  margin-right: 36px;
+}
+
+.rules-card h3 {
+  margin: 16px 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sea-dark);
+}
+
+.rules-card p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.rules-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.rules-card li + li {
+  margin-top: 4px;
+}
+
+.rules-card .rules-fleet {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #e3eef7;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+/* Sticky so the X stays on screen while a tall dialog is scrolled. */
+.rules-card .close-btn {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin: -8px -12px 0 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.3rem;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--sea-dark);
+}
+
+/* Inline swatches matching the board markers. */
+.rules-card .legend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.15em;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.rules-card .legend-hit {
+  background: rgba(214, 69, 69, 0.3);
+  box-shadow: inset 0 0 0 2px var(--hit);
+  color: var(--hit);
+}
+
+.rules-card .legend-miss {
+  background: var(--miss);
+  position: relative;
+}
+
+.rules-card .legend-miss::after {
+  content: "";
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: var(--miss-marker);
+}
+
+.rules-card .legend-sunk {
+  background: var(--hull-sunk);
+  box-shadow: inset 0 0 0 2px var(--sunk);
+  color: #f0b3b3;
+}
+
 /* Compact viewports - phones in either orientation. The page becomes a column
    that fills the viewport, which gives the row holding the boards a definite
    height; .board-area is a size container inside it, so each board can be the
