@@ -234,7 +234,8 @@ button.primary:not(.cell):hover:not(:disabled) {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  overflow: visible;
+  /* An off-board preview shows only the on-board part of the hull. */
+  overflow: hidden;
 }
 
 .ship-graphic .hull {
@@ -578,6 +579,8 @@ main.placement .fleet-list {
 .overlay {
   position: fixed;
   inset: 0;
+  /* Above the cells and ship graphics, which carry z-indexes of their own. */
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
