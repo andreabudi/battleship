@@ -2,7 +2,7 @@
  *
  * Layout of this file:
  *   1. Constants and model helpers (fleet, boards, placement rules)
- *   2. Rendering
+ *   2. Rendering (2a. ship graphics, 2b. boards and panels)
  *   3. Player placement flow
  *   4. Turn handling (player shot -> AI shot)
  *   5. AI OPPONENT  <- hunt/target state machine, clearly marked below
@@ -211,6 +211,121 @@ const pageContentElements = Array.from(
   document.querySelectorAll("body > header, body > main")
 );
 
+/* ------------------------------------------------------------------ *
+ * 2a. Ship graphics
+ *
+ * Every ship is one inline SVG drawn in a 100-unit-per-cell coordinate
+ * system, horizontally with the bow pointing right. On a board the SVG is a
+ * grid item spanning the ship's cells (gaps included), so it lines up with
+ * the grid at any size; the vertical variant is the same drawing rotated.
+ * The SVGs never take pointer events - clicks land on the cell buttons
+ * underneath exactly as they did before.
+ * ------------------------------------------------------------------ */
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** Silhouettes keyed by ship name; `length` is the ship's size * 100. */
+const SHIP_SILHOUETTES = {
+  // Flat, near-rectangular flight deck with an angled bow, an island and a
+  // dashed runway line.
+  Carrier: (length) => `
+    <path class="hull" d="M 34 16 H ${length - 52} L ${length - 8} 50 L ${length - 52} 84 H 34 Q 8 84 8 50 Q 8 16 34 16 Z"/>
+    <line class="deck-line" x1="44" y1="50" x2="${length - 60}" y2="50" stroke-dasharray="16 12"/>
+    <rect class="deck" x="${length * 0.58}" y="22" width="70" height="20" rx="3"/>`,
+  // Pointed bow, a central superstructure with a funnel and two gun turrets.
+  Battleship: (length) => `
+    <path class="hull" d="M 40 20 H ${length - 72} L ${length - 8} 50 L ${length - 72} 80 H 40 Q 10 80 10 50 Q 10 20 40 20 Z"/>
+    <rect class="deck" x="${length * 0.4}" y="30" width="${length * 0.2}" height="40" rx="4"/>
+    <rect class="detail" x="${length * 0.48}" y="38" width="14" height="24" rx="2"/>
+    <line class="barrel" x1="${length * 0.22}" y1="50" x2="${length * 0.13}" y2="50"/>
+    <circle class="turret" cx="${length * 0.24}" cy="50" r="14"/>
+    <line class="barrel" x1="${length * 0.74}" y1="50" x2="${length * 0.86}" y2="50"/>
+    <circle class="turret" cx="${length * 0.72}" cy="50" r="14"/>`,
+  // Slimmer hull with a bridge, one funnel and a single forward turret.
+  Cruiser: (length) => `
+    <path class="hull" d="M 34 26 H ${length - 62} L ${length - 8} 50 L ${length - 62} 74 H 34 Q 10 74 10 50 Q 10 26 34 26 Z"/>
+    <rect class="deck" x="${length * 0.38}" y="35" width="${length * 0.22}" height="30" rx="3"/>
+    <circle class="detail" cx="${length * 0.44}" cy="50" r="7"/>
+    <line class="barrel" x1="${length * 0.74}" y1="50" x2="${length * 0.86}" y2="50"/>
+    <circle class="turret" cx="${length * 0.73}" cy="50" r="10"/>`,
+  // Cigar-shaped hull rounded at both ends, a conning tower and a periscope.
+  Submarine: (length) => `
+    <path class="hull" d="M 50 28 H ${length - 50} Q ${length - 8} 28 ${length - 8} 50 Q ${length - 8} 72 ${length - 50} 72 H 50 Q 8 72 8 50 Q 8 28 50 28 Z"/>
+    <rect class="deck" x="${length * 0.42}" y="16" width="${length * 0.17}" height="32" rx="7"/>
+    <line class="mast" x1="${length * 0.5}" y1="6" x2="${length * 0.5}" y2="18"/>`,
+  // Small and sharp: a bridge with a mast and one gun.
+  Destroyer: (length) => `
+    <path class="hull" d="M 30 28 H ${length - 50} L ${length - 8} 50 L ${length - 50} 72 H 30 Q 8 72 8 50 Q 8 28 30 28 Z"/>
+    <rect class="deck" x="${length * 0.38}" y="36" width="${length * 0.24}" height="28" rx="3"/>
+    <line class="mast" x1="${length * 0.5}" y1="16" x2="${length * 0.5}" y2="36"/>
+    <line class="barrel" x1="${length * 0.76}" y1="50" x2="${length * 0.87}" y2="50"/>
+    <circle class="turret" cx="${length * 0.75}" cy="50" r="8"/>`,
+};
+
+/**
+ * An SVG of `type` pointing right (horizontal) or down (vertical). A preview
+ * that runs off the board is drawn with `visibleCells` < size: the viewBox
+ * then shows only the part of the ship that is on the board.
+ */
+function createShipGraphic(type, orientation, visibleCells = type.size) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  const length = type.size * 100;
+  const visibleLength = visibleCells * 100;
+  svg.setAttribute(
+    "viewBox",
+    orientation === HORIZONTAL
+      ? `0 0 ${visibleLength} 100`
+      : `0 0 100 ${visibleLength}`
+  );
+  // The span includes the gaps between cells, so the box is slightly longer
+  // than size:1; stretching to fill it keeps the graphic on the cells.
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  svg.classList.add("ship-graphic", `ship-${type.name.toLowerCase()}`);
+  const group = document.createElementNS(SVG_NS, "g");
+  if (orientation === VERTICAL) {
+    // (x, y) -> (100 - y, x): the bow at x = length ends up at the bottom.
+    group.setAttribute("transform", "translate(100 0) rotate(90)");
+  }
+  group.innerHTML = SHIP_SILHOUETTES[type.name](length);
+  svg.appendChild(group);
+  return svg;
+}
+
+/** Places a ship graphic over the grid cells `cells` (contiguous, in order). */
+function positionShipGraphic(svg, cells) {
+  const first = cells[0];
+  const last = cells[cells.length - 1];
+  svg.style.gridArea = `${toRow(first) + 1} / ${toCol(first) + 1} / ${
+    toRow(last) + 2
+  } / ${toCol(last) + 2}`;
+}
+
+/**
+ * Draws the ships of `board` that may be shown. Enemy ships are only added
+ * to the document once sunk (or when the game is over), so nothing about
+ * their position exists in the page before that.
+ */
+function renderShipGraphics(board, boardElement, { revealShips }) {
+  boardElement
+    .querySelectorAll(".ship-graphic:not(.preview)")
+    .forEach((element) => element.remove());
+  board.ships.forEach((ship) => {
+    if (!isShipPlaced(ship)) return;
+    if (!revealShips && !ship.isSunk) return;
+    const svg = createShipGraphic(ship, orientationOf(ship));
+    svg.classList.add("placed");
+    if (ship.isSunk) svg.classList.add("sunk");
+    positionShipGraphic(svg, ship.cells);
+    boardElement.appendChild(svg);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * 2b. Boards and panels
+ * ------------------------------------------------------------------ */
+
 /** Builds the 100 cell buttons once per board and returns them in index order. */
 function buildBoardCells(boardElement, label) {
   boardElement.innerHTML = "";
@@ -220,6 +335,9 @@ function buildBoardCells(boardElement, label) {
     cell.type = "button";
     cell.className = "cell";
     cell.dataset.index = String(index);
+    // Explicit grid placement, so the ship graphics (also grid items) can
+    // share the same tracks without displacing the cells.
+    cell.style.gridArea = `${toRow(index) + 1} / ${toCol(index) + 1}`;
     cell.setAttribute("aria-label", `${label} ${formatCoordinate(index)}`);
     boardElement.appendChild(cell);
     cells.push(cell);
@@ -228,6 +346,7 @@ function buildBoardCells(boardElement, label) {
 }
 
 function renderBoard(board, cellElements, { revealShips }) {
+  renderShipGraphics(board, cellElements[0].parentElement, { revealShips });
   cellElements.forEach((cellElement, index) => {
     const shipId = board.shipIdAt[index];
     const ship = shipId === null ? null : board.ships[shipId];
@@ -275,14 +394,11 @@ function buildFleetPicker() {
     name.className = "fleet-option-name";
     name.textContent = `${type.name} (${type.size})`;
 
-    const cellsRow = document.createElement("span");
-    cellsRow.className = "fleet-option-cells";
-    cellsRow.setAttribute("aria-hidden", "true");
-    for (let step = 0; step < type.size; step += 1) {
-      cellsRow.appendChild(document.createElement("i"));
-    }
+    const silhouette = createShipGraphic(type, HORIZONTAL);
+    silhouette.classList.add("fleet-silhouette");
+    silhouette.style.setProperty("--ship-length", String(type.size));
 
-    option.append(name, cellsRow);
+    option.append(name, silhouette);
     item.appendChild(option);
     fleetPickerElement.appendChild(item);
     return option;
@@ -418,19 +534,32 @@ function paintPreview() {
   playerCellElements.forEach((cellElement) => {
     cellElement.classList.remove("preview-ok", "preview-bad", "preview-pending");
   });
+  playerBoardElement
+    .querySelectorAll(".ship-graphic.preview")
+    .forEach((element) => element.remove());
   if (game.phase !== "placement" || game.previewIndex === null) return;
 
   const preview = previewPlacement(game.previewIndex);
   if (!preview) return;
   const stateClass = preview.isValid ? "preview-ok" : "preview-bad";
+  // A tap-selected preview is armed rather than merely hovered, so it gets an
+  // extra outline that survives the pointer leaving the board.
+  const pending = game.pendingIndex !== null;
   preview.cells.forEach((cellIndex) => {
     playerCellElements[cellIndex].classList.add(stateClass);
-    // A tap-selected preview is armed rather than merely hovered, so it gets an
-    // extra outline that survives the pointer leaving the board.
-    if (game.pendingIndex !== null) {
-      playerCellElements[cellIndex].classList.add("preview-pending");
-    }
+    if (pending) playerCellElements[cellIndex].classList.add("preview-pending");
   });
+  // The ship itself, tinted for validity; off-board previews show only the
+  // part of the hull that is on the board.
+  const svg = createShipGraphic(
+    preview.ship,
+    game.orientation,
+    preview.cells.length
+  );
+  svg.classList.add("preview", stateClass);
+  if (pending) svg.classList.add("preview-pending");
+  positionShipGraphic(svg, preview.cells);
+  playerBoardElement.appendChild(svg);
 }
 
 function setPreview(index) {
