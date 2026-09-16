@@ -249,6 +249,11 @@ function runFleetPickerPlacementTest() {
 
   selectShip(4); // Destroyer first, out of fleet order
   assert(fleetOptionElements[4].classList.contains("selected"), "picker marks the chosen ship");
+  assert(nextShipNameElement.textContent === "Destroyer", "state line names the selected ship");
+  assert(nextShipSizeElement.textContent === "2", "state line shows its length");
+  toggleOrientation();
+  assert(orientationLabelElement.textContent === VERTICAL, "state line tracks Rotate");
+  toggleOrientation();
   commitPlacement(toIndex(0, 0));
   assert(isShipPlaced(board.ships[4]), "the selected ship, not the first, was placed");
   assert(fleetOptionElements[4].disabled, "a placed ship cannot be selected again");
@@ -275,6 +280,7 @@ function runFleetPickerPlacementTest() {
   selectShip(null);
   handlePlacementCellActivation(toIndex(8, 0));
   assert(board.placedShipCount === 1, "no ship is placed while nothing is selected");
+  assert(nextShipNameElement.textContent === "No ship selected", "state line never goes blank");
 
   // Fill the fleet: Start game only enables at five, and only then does the
   // enemy board enter the document.
@@ -296,7 +302,7 @@ function runFleetPickerPlacementTest() {
   assert(!inDocument(enemyBoardElement), "New game removes the enemy board again");
   report(
     "Fleet picker: any-order placement, pick-up to reposition, ordered Undo, " +
-      "Start game gated on five ships, enemy board absent until then"
+      "Start game gated on five ships, enemy board absent until then, live state line"
   );
 }
 

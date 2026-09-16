@@ -297,6 +297,14 @@ main.placement .fleet-list {
   display: none;
 }
 
+/* Live readout of the selected ship and its orientation; stays visible in
+   every layout, unlike the help text in .hint. */
+.placement-state {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  min-height: 1.3em;
+}
+
 #placement-panel.no-selection #placement-detail {
   display: none;
 }
@@ -750,9 +758,15 @@ main.placement .fleet-list {
     gap: 4px;
   }
 
-  /* The status line repeats what the hint says; the buttons need the room. */
+  /* The status line repeats what the hint says; the buttons need the room.
+     The live state line stays, just smaller. */
   #placement-panel .hint {
     display: none;
+  }
+
+  #placement-panel .placement-state {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
   }
 
   .fleet-picker {

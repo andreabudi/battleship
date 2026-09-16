@@ -374,9 +374,11 @@ function updatePlacementHint() {
   if (!ship) {
     const allPlaced = game.playerBoard.placedShipCount === SHIP_TYPES.length;
     placementInstructionElement.textContent = allPlaced
-      ? "All ships placed. Press Start game, or click a ship to move it."
+      ? "Press Start game, or click a ship on the board to move it."
       : "Select a ship from the list to place it.";
-    nextShipNameElement.textContent = "";
+    nextShipNameElement.textContent = allPlaced
+      ? "All ships placed"
+      : "No ship selected";
     nextShipSizeElement.textContent = "";
     orientationLabelElement.textContent = "";
     placementPanel.classList.add("no-selection");
@@ -387,8 +389,8 @@ function updatePlacementHint() {
   nextShipSizeElement.textContent = String(ship.size);
   orientationLabelElement.textContent = game.orientation;
   placementInstructionElement.textContent = usesTapPlacement
-    ? "Tap a cell on your waters to preview, then Confirm, to place"
-    : "Click a cell on your waters to place";
+    ? "Tap a cell on your waters to preview, then Confirm to place it"
+    : "Click a cell on your waters to place it";
 }
 
 /** The cells a preview at `index` covers, and whether it may be committed. */
