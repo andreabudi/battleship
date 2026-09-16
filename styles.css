@@ -1,14 +1,28 @@
 :root {
-  --sea: #dceefb;
+  /* Naval palette: deep-water page, sand/paper cards, steel-grey ships. */
+  --ocean-deep: #0a1f33;
+  --ocean: #103a5c;
+  --sea: #3f8fc4;
+  --sea-light: #62a8d6;
   --sea-dark: #0b3c5d;
-  --ship: #6b7a8f;
+  --card: #f5f9fc;
+  --card-border: #c9dbe8;
+  --ink: #142a3d;
+  --ink-soft: #4a6378;
+  --hull: #6b7a8f;
+  --hull-edge: #3e4a5a;
+  --deck: #9aa8b8;
+  --detail: #2f3e4d;
+  --hull-sunk: #4a3030;
+  --deck-sunk: #6a5050;
   --hit: #d64545;
   --miss: #2f3e4d;
   --miss-marker: #cfd8e3;
   --sunk: #7b1e1e;
   --preview-ok: #4caf7d;
-  --preview-bad: #e07a5f;
-  --hover: #a9d0ea;
+  --preview-bad: #e0534f;
+  --hover: #8fc4e6;
+  --accent: #f2b33d;
   --cell-gap: 2px;
   /* Largest a cell may get; reached on desktop, where the board is 362px as
      before. Below that the board is sized from its container rather than from
@@ -29,25 +43,31 @@ body {
   margin: 0;
   padding: 12px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f4f8fb;
-  color: #14293b;
+  background:
+    radial-gradient(ellipse at top, rgba(63, 143, 196, 0.25), transparent 60%),
+    linear-gradient(180deg, var(--ocean) 0%, var(--ocean-deep) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
 }
 
 header {
   text-align: center;
+  color: #fff;
 }
 
 h1 {
   margin: 0 0 4px;
   font-size: 1.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 h2 {
-  font-size: 1rem;
+  font-size: 0.8rem;
   margin: 0 0 8px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--sea-dark);
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
 }
 
 main {
@@ -59,19 +79,22 @@ main {
   margin: 0 0 12px;
   font-weight: 600;
   min-height: 1.4em;
+  color: #e6f1f9;
 }
 
 .hint {
   margin: 0 0 8px;
   font-size: 0.9rem;
+  color: var(--ink-soft);
 }
 
 .panel {
-  background: #fff;
-  border: 1px solid #d6e2ec;
-  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 12px;
+  box-shadow: 0 6px 18px rgba(4, 18, 32, 0.25);
 }
 
 .controls {
@@ -80,26 +103,42 @@ main {
   gap: 8px;
 }
 
+/* Buttons: secondary by default (outlined steel), .primary for the one action
+   that moves the game on, and unmistakably washed out when disabled. */
 button {
   font: inherit;
+  font-weight: 600;
   padding: 8px 12px;
   border: 1px solid var(--sea-dark);
   border-radius: 6px;
-  background: var(--sea-dark);
-  color: #fff;
+  background: #fff;
+  color: var(--sea-dark);
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 /* Board cells are buttons too, but their hover affordance is phase-driven and
    handled by the `.board.interactive` rules, so exclude them here. */
 button:not(.cell):hover:not(:disabled) {
-  background: #145a80;
+  background: var(--sea-dark);
+  color: #fff;
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  border-style: dashed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: #c98c15;
+  color: var(--ink);
+}
+
+button.primary:not(.cell):hover:not(:disabled) {
+  background: #ffc75a;
+  color: var(--ink);
 }
 
 .boards {
@@ -113,10 +152,11 @@ button:disabled {
 .board-wrapper {
   flex: 1 1 320px;
   min-width: 0;
-  background: #fff;
-  border: 1px solid #d6e2ec;
-  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
   padding: 12px;
+  box-shadow: 0 6px 18px rgba(4, 18, 32, 0.25);
 }
 
 /* Ten equal tracks in a square box: the board fills the width its wrapper
@@ -134,20 +174,24 @@ button:disabled {
   container-type: size;
   max-width: var(--board-cap);
   margin: 0 auto;
-  background: #b9d4e6;
+  background: var(--sea-dark);
   padding: var(--cell-gap);
-  border-radius: 4px;
+  border-radius: 6px;
   touch-action: manipulation;
 }
 
 .cell {
   position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   /* Marker size follows the board, not the viewport: 6.6% of the board width
      is ~0.7 of a cell at every size. */
   font-size: 6.6cqw;
-  background: var(--sea);
+  /* Water: a faint highlight in the upper left reads as a ripple. */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.18), transparent 55%),
+    var(--sea);
   border: none;
   border-radius: 2px;
   padding: 0;
@@ -177,12 +221,114 @@ button:disabled {
   background: var(--hover);
 }
 
-.board.interactive .cell.ship:not(.fired):hover {
-  background: #8394a8;
+/* A placed ship under the pointer during placement: the click picks it up. */
+.board.interactive .cell.ship:not(.fired) {
+  cursor: grab;
+}
+
+/* Ship graphics: grid items spanning the ship's cells, drawn above the water
+   but below fired cells so hit and miss markers stay on top. They never take
+   pointer events; the cell buttons underneath do. */
+.ship-graphic {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* An off-board preview shows only the on-board part of the hull. */
+  overflow: hidden;
+}
+
+.ship-graphic .hull {
+  fill: var(--hull);
+  stroke: var(--hull-edge);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.ship-graphic .deck {
+  fill: var(--deck);
+  stroke: var(--hull-edge);
+  stroke-width: 3;
+}
+
+.ship-graphic .turret {
+  fill: var(--deck);
+  stroke: var(--hull-edge);
+  stroke-width: 3;
+}
+
+.ship-graphic .detail {
+  fill: var(--detail);
+}
+
+.ship-graphic .barrel,
+.ship-graphic .mast {
+  stroke: var(--detail);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.ship-graphic .deck-line {
+  stroke: #e3e9f0;
+  stroke-width: 4;
+}
+
+/* Sunk: darkened, scorched hull so it reads as a wreck, not a healthy ship. */
+.ship-graphic.sunk .hull {
+  fill: var(--hull-sunk);
+  stroke: #1f1414;
+}
+
+.ship-graphic.sunk .deck,
+.ship-graphic.sunk .turret {
+  fill: var(--deck-sunk);
+  stroke: #1f1414;
+}
+
+.ship-graphic.sunk .detail,
+.ship-graphic.sunk .barrel,
+.ship-graphic.sunk .mast {
+  fill: #1f1414;
+  stroke: #1f1414;
+}
+
+.ship-graphic.sunk .deck-line {
+  stroke: #7a6a6a;
+}
+
+/* Placement preview: the ship itself, tinted green when it fits and red
+   when it would overlap or run off the board. */
+.ship-graphic.preview {
+  z-index: 4;
+  opacity: 0.9;
+}
+
+.ship-graphic.preview-ok .hull,
+.ship-graphic.preview-ok .deck,
+.ship-graphic.preview-ok .turret {
+  fill: var(--preview-ok);
+  stroke: #1f6b47;
+}
+
+.ship-graphic.preview-bad .hull,
+.ship-graphic.preview-bad .deck,
+.ship-graphic.preview-bad .turret {
+  fill: var(--preview-bad);
+  stroke: #8a1f1f;
+}
+
+.ship-graphic.preview-pending .hull {
+  stroke-width: 8;
+}
+
+/* Fired cells sit above the ship graphics; on a ship the fill is translucent
+   so the hull shows through under the marker. */
+.cell.fired {
+  z-index: 3;
 }
 
 .cell.ship {
-  background: var(--ship);
+  background: var(--sea);
 }
 
 /* Miss: dark slate fill with a small round dot, so it differs from a hit in
@@ -200,19 +346,28 @@ button:disabled {
 }
 
 .cell.hit {
-  background: var(--hit);
+  background: rgba(214, 69, 69, 0.3);
+  box-shadow: inset 0 0 0 2px var(--hit);
 }
 
 .cell.hit::after {
   content: "✕";
+  font-weight: 700;
+  color: var(--hit);
+  -webkit-text-stroke: 0.06em #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
 
 .cell.sunk {
-  background: var(--sunk);
+  background: rgba(40, 10, 10, 0.15);
+  box-shadow: inset 0 0 0 2px var(--sunk);
 }
 
 .cell.sunk::after {
   content: "✕";
+  font-weight: 700;
+  color: #f0b3b3;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
 }
 
 /* The placement preview must win over the hover highlight: the hovered cell is
@@ -221,18 +376,18 @@ button:disabled {
    restated here at matching specificity (and later in the file). */
 .cell.preview-ok,
 .board.interactive .cell.preview-ok:not(.fired):hover {
-  background: var(--preview-ok);
+  background: #b9e3cb;
 }
 
 .cell.preview-bad,
 .board.interactive .cell.preview-bad:not(.fired):hover {
-  background: var(--preview-bad);
+  background: #f3b8b6;
 }
 
 /* A tap-selected (armed) preview: outlined so it reads as a pending choice
    rather than a transient hover, since touch has no hover to fall back on. */
 .cell.preview-pending {
-  outline: 2px solid var(--sea-dark);
+  outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 
@@ -249,8 +404,9 @@ button:disabled {
 .fleet-list li {
   padding: 3px 8px;
   border-radius: 999px;
-  background: #e8f1f8;
-  border: 1px solid #cfe0ed;
+  background: #e3eef7;
+  border: 1px solid var(--card-border);
+  color: var(--ink);
 }
 
 .fleet-list li.sunk-ship {
@@ -287,7 +443,7 @@ main.placement .boards {
   grid-area: controls;
 }
 
-main.placement > .panel:last-of-type {
+main.placement > .footer {
   grid-area: log;
 }
 
@@ -318,7 +474,7 @@ main.placement .fleet-list {
   gap: 6px;
 }
 
-/* One entry per ship: its name and its length drawn as a row of cells. */
+/* One entry per ship: its name and a small silhouette of it. */
 .fleet-picker .fleet-option {
   display: flex;
   align-items: center;
@@ -327,40 +483,40 @@ main.placement .fleet-list {
   width: 100%;
   padding: 6px 10px;
   font-size: 0.85rem;
+  font-weight: 500;
   text-align: left;
-  color: inherit;
-  background: #e8f1f8;
-  border: 1px solid #cfe0ed;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--card-border);
   border-radius: 6px;
 }
 
 .fleet-picker .fleet-option:hover:not(:disabled) {
-  background: var(--hover);
+  background: #e3eef7;
+  color: var(--ink);
 }
 
 .fleet-picker .fleet-option.selected {
   background: #fff;
   border-color: var(--sea-dark);
   box-shadow: inset 0 0 0 2px var(--sea-dark);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .fleet-picker .fleet-option.placed {
   text-decoration: line-through;
+  border-style: solid;
 }
 
-.fleet-option-cells {
-  display: flex;
-  gap: 2px;
+.fleet-silhouette {
+  --silhouette-cell: 18px;
   flex: 0 0 auto;
+  height: var(--silhouette-cell);
+  width: calc(var(--ship-length) * var(--silhouette-cell));
 }
 
-.fleet-option-cells i {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: var(--ship);
-  border-radius: 2px;
+.fleet-option.placed .fleet-silhouette {
+  opacity: 0.6;
 }
 
 /* Start game is the one action that moves the game on, so it is the largest
@@ -372,6 +528,28 @@ main.placement .fleet-list {
   padding: 12px;
   font-size: 1.05rem;
   font-weight: 700;
+  box-shadow: 0 3px 0 #c98c15;
+}
+
+#start-game-btn:disabled {
+  box-shadow: none;
+}
+
+/* Below the boards: the game controls (New game, with room beside it for a
+   later Rules button) and the battle log side by side. */
+.footer {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.game-controls {
+  flex: 0 0 auto;
+}
+
+.log-panel {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .log {
@@ -384,18 +562,29 @@ main.placement .fleet-list {
 }
 
 .log li {
-  padding: 4px 0;
-  border-bottom: 1px solid #eef3f7;
+  padding: 4px 8px;
+  border-left: 3px solid var(--card-border);
+  margin-bottom: 3px;
+  background: #fff;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.35;
+}
+
+.log li:first-child {
+  border-left-color: var(--accent);
+  font-weight: 600;
 }
 
 /* End-of-game overlay: the boards stay visible behind the translucent scrim. */
 .overlay {
   position: fixed;
   inset: 0;
+  /* Above the cells and ship graphics, which carry z-indexes of their own. */
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(11, 60, 93, 0.55);
+  background: rgba(6, 24, 41, 0.7);
   padding: 16px;
 }
 
@@ -404,21 +593,30 @@ main.placement .fleet-list {
 }
 
 .overlay-card {
-  background: #fff;
+  background: var(--card);
   border-radius: 12px;
   padding: 24px;
   text-align: center;
   max-width: 320px;
-  box-shadow: 0 10px 30px rgba(11, 60, 93, 0.35);
+  border-top: 6px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(4, 18, 32, 0.5);
 }
 
 .overlay-card h2 {
   font-size: 1.5rem;
   margin-bottom: 8px;
+  color: var(--ink);
+  letter-spacing: 0.04em;
 }
 
 .overlay-card p {
   margin: 0 0 16px;
+  color: var(--ink-soft);
+}
+
+.overlay-card button {
+  background: var(--sea-dark);
+  color: #fff;
 }
 
 /* Compact viewports - phones in either orientation. The page becomes a column
@@ -468,6 +666,11 @@ main.placement .fleet-list {
     height: min(100cqw, 100cqh, var(--board-cap));
     max-width: none;
     aspect-ratio: auto;
+  }
+
+  .panel,
+  .board-wrapper {
+    box-shadow: none;
   }
 }
 
@@ -524,16 +727,25 @@ main.placement .fleet-list {
     padding: 2px 5px;
   }
 
+  .footer {
+    gap: 8px;
+  }
+
   .log {
     max-height: 96px;
     font-size: 0.8rem;
+  }
+
+  .log li {
+    padding: 2px 6px;
+    margin-bottom: 2px;
   }
 
   .fleet-picker {
     gap: 4px;
   }
 
-  /* Narrow column beside the board: name above the cell row. */
+  /* Narrow column beside the board: name above the silhouette. */
   .fleet-picker .fleet-option {
     flex-direction: column;
     align-items: flex-start;
@@ -542,9 +754,8 @@ main.placement .fleet-list {
     font-size: 0.7rem;
   }
 
-  .fleet-option-cells i {
-    width: 9px;
-    height: 9px;
+  .fleet-silhouette {
+    --silhouette-cell: 11px;
   }
 
   #start-game-btn {
@@ -667,18 +878,22 @@ main.placement .fleet-list {
     font-size: 0.85rem;
   }
 
-  main > .panel:last-of-type {
+  .footer {
+    gap: 6px;
+  }
+
+  .footer .panel {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  main > .panel:last-of-type h2 {
+  .footer h2 {
     margin: 0;
     font-size: 0.65rem;
   }
 
-  main > .panel:last-of-type .log {
+  .log-panel .log {
     flex: 1 1 auto;
   }
 
@@ -724,6 +939,11 @@ main.placement .fleet-list {
   .log {
     max-height: 44px;
     font-size: 0.75rem;
+  }
+
+  .log li {
+    padding: 1px 6px;
+    margin-bottom: 2px;
   }
 
   /* Placement in landscape: the picker and the controls each take a column
@@ -781,9 +1001,8 @@ main.placement .fleet-list {
     font-size: 0.7rem;
   }
 
-  .fleet-option-cells i {
-    width: 9px;
-    height: 9px;
+  .fleet-silhouette {
+    --silhouette-cell: 9px;
   }
 
   #start-game-btn {
@@ -798,7 +1017,7 @@ main.placement .fleet-list {
    grids give up their remaining slack - per the rule that the chrome shrinks
    before the boards do. */
 @media (max-height: 360px) and (orientation: landscape) {
-  main > .panel:last-of-type {
+  .footer .panel {
     padding: 4px 6px;
   }
 

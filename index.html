@@ -58,13 +58,18 @@
       <button type="button" id="start-game-btn" class="primary" disabled>Start game</button>
     </section>
 
-    <section class="panel">
-      <div class="controls">
-        <button type="button" id="new-game-btn">New game</button>
-      </div>
-      <h2>Battle log</h2>
-      <ul id="log" class="log"></ul>
-    </section>
+    <div id="footer" class="footer">
+      <section id="game-controls" class="panel game-controls">
+        <h2>Game</h2>
+        <div class="controls">
+          <button type="button" id="new-game-btn">New game</button>
+        </div>
+      </section>
+      <section id="log-panel" class="panel log-panel">
+        <h2>Battle log</h2>
+        <ul id="log" class="log"></ul>
+      </section>
+    </div>
   </main>
 
   <div id="game-over-overlay" class="overlay" hidden>
