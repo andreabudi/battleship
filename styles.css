@@ -750,6 +750,11 @@ main.placement .fleet-list {
     gap: 4px;
   }
 
+  /* The status line repeats what the hint says; the buttons need the room. */
+  #placement-panel .hint {
+    display: none;
+  }
+
   .fleet-picker {
     gap: 4px;
   }
@@ -795,11 +800,6 @@ main.placement .fleet-list {
   .fleet-list {
     margin-top: 2px;
     font-size: 0.55rem;
-  }
-
-  /* The status line repeats what the hint says; the buttons need the room. */
-  #placement-panel .hint {
-    display: none;
   }
 
   #placement-panel .controls button {
