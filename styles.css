@@ -561,6 +561,8 @@ main.placement .fleet-list {
 
   main.placement .board-area {
     container-type: inline-size;
+    /* Stretching would override the aspect ratio and make the cells tall. */
+    align-items: flex-start;
   }
 
   main.placement .board {
