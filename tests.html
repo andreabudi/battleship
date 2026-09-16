@@ -12,8 +12,14 @@
   <!-- game.js wires itself to the real UI on load, so the harness supplies the
        same element ids as index.html. They are hidden and unused by the tests. -->
   <div hidden>
-    <div id="player-board"></div>
-    <div id="enemy-board"></div>
+    <main id="game">
+      <div id="boards">
+        <div id="player-board"></div>
+        <div id="enemy-wrapper">
+          <div id="enemy-board"></div>
+        </div>
+      </div>
+    </main>
     <ul id="player-fleet"></ul>
     <ul id="enemy-fleet"></ul>
     <p id="status"></p>
@@ -22,6 +28,10 @@
       <span id="next-ship-name"></span>
       <span id="next-ship-size"></span>
       <span id="orientation-label"></span>
+      <button type="button" id="start-game-btn" disabled></button>
+    </div>
+    <div id="fleet-picker-panel">
+      <ul id="fleet-picker"></ul>
     </div>
     <span id="placement-instruction"></span>
     <button type="button" id="rotate-btn"></button>

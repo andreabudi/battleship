@@ -260,6 +260,112 @@ button:disabled {
   text-decoration: line-through;
 }
 
+/* Placement phase: only the player's board is in the document, with the fleet
+   picker and the placement controls in a column beside it. `main.placement`
+   is toggled by game.js together with the enemy board's presence. */
+main.placement {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "boards picker"
+    "boards controls"
+    "log    log";
+  column-gap: 16px;
+  align-items: start;
+}
+
+main.placement .boards {
+  grid-area: boards;
+}
+
+#fleet-picker-panel {
+  grid-area: picker;
+}
+
+#placement-panel {
+  grid-area: controls;
+}
+
+main.placement > .panel:last-of-type {
+  grid-area: log;
+}
+
+/* The picker already lists the fleet, so the status pills under the board
+   only appear once the battle starts. */
+main.placement .fleet-list {
+  display: none;
+}
+
+#placement-panel.no-selection #placement-detail {
+  display: none;
+}
+
+.fleet-picker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* One entry per ship: its name and its length drawn as a row of cells. */
+.fleet-picker .fleet-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  text-align: left;
+  color: inherit;
+  background: #e8f1f8;
+  border: 1px solid #cfe0ed;
+  border-radius: 6px;
+}
+
+.fleet-picker .fleet-option:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.fleet-picker .fleet-option.selected {
+  background: #fff;
+  border-color: var(--sea-dark);
+  box-shadow: inset 0 0 0 2px var(--sea-dark);
+  font-weight: 600;
+}
+
+.fleet-picker .fleet-option.placed {
+  text-decoration: line-through;
+}
+
+.fleet-option-cells {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.fleet-option-cells i {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: var(--ship);
+  border-radius: 2px;
+}
+
+/* Start game is the one action that moves the game on, so it is the largest
+   control on the placement screen. */
+#start-game-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
 .log {
   list-style: none;
   margin: 0;
@@ -414,6 +520,54 @@ button:disabled {
     max-height: 96px;
     font-size: 0.8rem;
   }
+
+  .fleet-picker {
+    gap: 4px;
+  }
+
+  /* Narrow column beside the board: name above the cell row. */
+  .fleet-picker .fleet-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+
+  .fleet-option-cells i {
+    width: 9px;
+    height: 9px;
+  }
+
+  #start-game-btn {
+    margin-top: 8px;
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Portrait phones during placement: the board takes the width the picker
+   leaves it (height is plentiful here), the controls go underneath. */
+@media (max-width: 700px) and (orientation: portrait) {
+  main.placement {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "boards   picker"
+      "controls controls"
+      "log      log";
+    column-gap: 8px;
+    align-items: stretch;
+  }
+
+  main.placement .board-area {
+    container-type: inline-size;
+  }
+
+  main.placement .board {
+    width: min(100cqw, var(--board-cap), 40svh);
+    height: auto;
+    aspect-ratio: 1;
+  }
 }
 
 /* Very narrow phones (320px and down): trim the chrome around the grids
@@ -562,28 +716,29 @@ button:disabled {
     font-size: 0.75rem;
   }
 
-  /* Placement in landscape: the controls move into a column beside the boards,
-     so the scarce vertical budget goes to the grids instead of a stack of
-     buttons. The grid only applies while the panel is on screen; firing keeps
-     the plain column layout. */
-  main:has(#placement-panel:not([hidden])) {
-    display: grid;
-    grid-template-columns: minmax(120px, 21%) minmax(0, 1fr);
+  /* Placement in landscape: the picker and the controls each take a column
+     beside the board, so the scarce vertical budget goes to the grid instead
+     of a stack of buttons. */
+  main.placement {
+    grid-template-columns: minmax(0, 1fr) auto minmax(120px, 26%);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
-      "place boards"
-      "place log";
+      "boards picker controls"
+      "log    log    log";
     column-gap: 8px;
+    align-items: stretch;
   }
 
+  #fleet-picker-panel,
   #placement-panel {
-    grid-area: place;
-    margin-bottom: 0;
+    margin-bottom: 6px;
+    min-height: 0;
     overflow-y: auto;
   }
 
+  #fleet-picker-panel h2,
   #placement-panel h2 {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     margin-bottom: 4px;
   }
 
@@ -593,12 +748,27 @@ button:disabled {
     gap: 4px;
   }
 
-  main:has(#placement-panel:not([hidden])) .boards {
-    grid-area: boards;
+  .fleet-picker {
+    gap: 4px;
   }
 
-  main:has(#placement-panel:not([hidden])) > .panel:last-of-type {
-    grid-area: log;
+  .fleet-picker .fleet-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+
+  .fleet-option-cells i {
+    width: 9px;
+    height: 9px;
+  }
+
+  #start-game-btn {
+    margin-top: 6px;
+    padding: 8px;
+    font-size: 0.9rem;
   }
 }
 
@@ -623,5 +793,15 @@ button:disabled {
   .fleet-list {
     margin-top: 2px;
     font-size: 0.55rem;
+  }
+
+  /* The status line repeats what the hint says; the buttons need the room. */
+  #placement-panel .hint {
+    display: none;
+  }
+
+  #placement-panel .controls button {
+    padding: 4px 8px;
+    font-size: 0.75rem;
   }
 }

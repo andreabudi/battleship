@@ -12,25 +12,8 @@
     <p id="status" class="status" role="status" aria-live="polite">Place your fleet to begin.</p>
   </header>
 
-  <main>
-    <section id="placement-panel" class="panel">
-      <h2>Place your fleet</h2>
-      <p class="hint">
-        <span id="placement-instruction">Click a cell on your waters to place</span>
-        <strong id="next-ship-name">Carrier</strong>
-        (<span id="next-ship-size">5</span> cells,
-        <span id="orientation-label">horizontal</span>).
-      </p>
-      <div class="controls">
-        <button type="button" id="rotate-btn">Rotate (R)</button>
-        <button type="button" id="confirm-placement-btn" hidden>Confirm</button>
-        <button type="button" id="undo-ship-btn">Undo last ship</button>
-        <button type="button" id="random-btn">Random placement</button>
-        <button type="button" id="reset-placement-btn">Clear placement</button>
-      </div>
-    </section>
-
-    <div class="boards">
+  <main id="game" class="placement">
+    <div id="boards" class="boards">
       <section class="board-wrapper">
         <h2>Your waters</h2>
         <div class="board-area">
@@ -39,7 +22,9 @@
         <ul id="player-fleet" class="fleet-list"></ul>
       </section>
 
-      <section class="board-wrapper">
+      <!-- Detached from the document during placement and attached by
+           "Start game"; see game.js. -->
+      <section id="enemy-wrapper" class="board-wrapper">
         <h2>Enemy waters</h2>
         <div class="board-area">
           <div id="enemy-board" class="board" aria-label="Enemy waters"></div>
@@ -47,6 +32,31 @@
         <ul id="enemy-fleet" class="fleet-list"></ul>
       </section>
     </div>
+
+    <section id="fleet-picker-panel" class="panel">
+      <h2>Your fleet</h2>
+      <ul id="fleet-picker" class="fleet-picker" aria-label="Ships to place"></ul>
+    </section>
+
+    <section id="placement-panel" class="panel">
+      <h2>Place your fleet</h2>
+      <p class="hint">
+        <span id="placement-instruction">Click a cell on your waters to place</span>
+        <span id="placement-detail">
+          <strong id="next-ship-name">Carrier</strong>
+          (<span id="next-ship-size">5</span> cells,
+          <span id="orientation-label">horizontal</span>).
+        </span>
+      </p>
+      <div class="controls">
+        <button type="button" id="rotate-btn">Rotate (R)</button>
+        <button type="button" id="confirm-placement-btn" hidden>Confirm</button>
+        <button type="button" id="undo-ship-btn">Undo last ship</button>
+        <button type="button" id="random-btn">Random placement</button>
+        <button type="button" id="reset-placement-btn">Clear all</button>
+      </div>
+      <button type="button" id="start-game-btn" class="primary" disabled>Start game</button>
+    </section>
 
     <section class="panel">
       <div class="controls">
