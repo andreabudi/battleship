@@ -619,22 +619,8 @@ main.placement .fleet-list {
   color: #fff;
 }
 
-.overlay-card .overlay-actions {
-  justify-content: center;
-}
-
-.overlay-card button.secondary {
-  background: #fff;
-  color: var(--sea-dark);
-}
-
-.overlay-card button.secondary:hover {
-  background: var(--sea-dark);
-  color: #fff;
-}
-
-/* Rules dialog: sits above the end-of-game overlay so it can be opened from
-   there too, and scrolls itself when taller than the viewport. */
+/* Rules dialog: sits above the end-of-game overlay in case the game ends
+   while it is open, and scrolls itself when taller than the viewport. */
 .rules-overlay {
   z-index: 101;
   align-items: flex-start;
