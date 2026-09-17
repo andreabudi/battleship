@@ -207,7 +207,6 @@ const resultTitleElement = document.getElementById("result-title");
 const resultDetailElement = document.getElementById("result-detail");
 const playAgainButton = document.getElementById("play-again-btn");
 const rulesButton = document.getElementById("rules-btn");
-const resultRulesButton = document.getElementById("result-rules-btn");
 const rulesOverlay = document.getElementById("rules-overlay");
 const rulesCloseButton = document.getElementById("rules-close-btn");
 /* Everything the overlay covers; made inert while the overlay is open. */
@@ -802,19 +801,15 @@ function isGameOverOverlayOpen() {
 /* ------------------------------------------------------------------ *
  * Rules dialog. Purely presentational: it never touches `game`, so it can
  * be opened in any phase - including while the AI's timer is pending, whose
- * shot simply lands behind the scrim. It stacks above the end-of-game
- * overlay, which is why that overlay is made inert too while it is open.
+ * shot may even end the game behind the scrim, so the end-of-game overlay
+ * is made inert too while the rules are open and the rules stack above it.
  * ------------------------------------------------------------------ */
-
-/* The control that opened the rules; focus returns to it on close. */
-let rulesOpener = null;
 
 function isRulesOpen() {
   return !rulesOverlay.hidden;
 }
 
-function openRules(opener) {
-  rulesOpener = opener;
+function openRules() {
   rulesOverlay.hidden = false;
   rulesOverlay.scrollTop = 0;
   [...pageContentElements, gameOverOverlay].forEach((element) => {
@@ -835,14 +830,12 @@ function closeRules() {
       element.removeAttribute("aria-hidden");
     });
   }
-  const opener = rulesOpener;
-  rulesOpener = null;
-  // If the game ended while the rules were open, the opener in the page is
-  // now inert, so focus goes to the result instead.
-  if (isGameOverOverlayOpen() && !gameOverOverlay.contains(opener)) {
+  // Focus returns to the Rules button - unless the game ended while the
+  // rules were open, in which case the page is inert and the result takes it.
+  if (isGameOverOverlayOpen()) {
     playAgainButton.focus();
-  } else if (opener) {
-    opener.focus();
+  } else {
+    rulesButton.focus();
   }
 }
 
@@ -1224,8 +1217,7 @@ rulesOverlay.addEventListener("click", (event) => {
 });
 
 rulesCloseButton.addEventListener("click", closeRules);
-rulesButton.addEventListener("click", () => openRules(rulesButton));
-resultRulesButton.addEventListener("click", () => openRules(resultRulesButton));
+rulesButton.addEventListener("click", openRules);
 
 // Last line of defence for browsers without `inert`: pull any focus that lands
 // outside the active modal back into it.
